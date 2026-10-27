@@ -1,0 +1,1377 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>APT Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: cabecera con pestañas; Terminal = consola simulada a la izquierda + misiones y estado a la derecha; Comandos = guía filtrable; Quiz = una pregunta a la vez.
+   Color: ciruela de la terminal de Ubuntu (aubergine) + naranja Ubuntu como único acento. */
+:root{
+  --bg:#F6F4F7; --surface:#FFFFFF; --surface2:#EEE9F1; --fg:#24152B; --muted:#675B6E; --line:#DDD5E2;
+  --accent:#C4400E; --accent-ink:#FFFFFF; --blue:#1F5FA6; --ok:#2F7D32; --warn:#8F5600; --err:#B3261E;
+  --term-bg:#2C001E; --term-bar:#3B0B2B; --term-fg:#EFE6EC; --term-dim:#A992A2;
+  --t-prompt:#8AE234; --t-path:#8CB4E8; --t-ok:#8AE234; --t-warn:#FCE94F; --t-err:#FF8A80; --t-acc:#FF9A6B;
+  --f-display:'Bricolage Grotesque',system-ui,sans-serif;
+  --f-body:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17080F; --surface:#241019; --surface2:#2F1823; --fg:#F4E9F0; --muted:#B5A0AE; --line:#47273A;
+    --accent:#FF8A57; --accent-ink:#2A0C00; --blue:#8CB4E8; --ok:#7FD27F; --warn:#F0B35A; --err:#FF8A80;
+    --term-bg:#1D0014; --term-bar:#2A0A20; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17080F; --surface:#241019; --surface2:#2F1823; --fg:#F4E9F0; --muted:#B5A0AE; --line:#47273A;
+  --accent:#FF8A57; --accent-ink:#2A0C00; --blue:#8CB4E8; --ok:#7FD27F; --warn:#F0B35A; --err:#FF8A80;
+  --term-bg:#1D0014; --term-bar:#2A0A20; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--f-body); font-size:15px; line-height:1.55;
+  margin:0; padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+code,kbd{font-family:var(--f-mono);font-size:.88em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h2{font-size:1.45rem;font-weight:800;letter-spacing:-.01em}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px;border-bottom:1px solid var(--line);padding-bottom:0}
+.brand{display:flex;align-items:center;gap:12px;padding-bottom:12px}
+.brand svg{flex:none}
+.brand h1{font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
+.brand p{color:var(--muted);font-size:.85rem}
+.tabs{display:flex;gap:4px}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;font-weight:600;color:var(--muted);margin-bottom:-1px}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.lead{color:var(--muted);max-width:68ch}
+
+/* terminal tab */
+.lab{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.mission{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:12px 14px}
+.mission .m-body{flex:1 1 260px;min-width:0}
+.eyebrow{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mission h3{margin-top:2px}
+.mission .why{color:var(--muted);font-size:.88rem;margin-top:2px}
+.mission .hint code{background:var(--surface2);padding:2px 7px;border-radius:4px;margin-right:6px}
+.btn{background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font-weight:600;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+.term{background:var(--term-bg);color:var(--term-fg);border-radius:10px;overflow:hidden;border:1px solid var(--line);font-family:var(--f-mono);font-size:13px}
+.term-bar{display:flex;justify-content:space-between;gap:10px;background:var(--term-bar);padding:8px 14px;color:var(--term-dim);font-size:12px}
+.screen{height:clamp(360px,56vh,540px);overflow-y:auto;padding:12px 14px 4px;line-height:1.5}
+.ln{white-space:pre-wrap;overflow-wrap:anywhere}
+.ln.dim{color:var(--term-dim)}.ln.ok{color:var(--t-ok)}.ln.warn{color:var(--t-warn)}.ln.err{color:var(--t-err)}
+.ln.tip{color:var(--t-acc);font-style:italic}
+.ln .pr{color:var(--t-prompt);font-weight:700}.ln .pa{color:var(--t-path);font-weight:700}
+.cmdrow{display:flex;align-items:center;gap:6px;padding:6px 14px 12px}
+.cmdrow .pr{color:var(--t-prompt);font-weight:700;white-space:nowrap}.cmdrow .pa{color:var(--t-path);font-weight:700}
+.cmdrow input{flex:1;min-width:0;background:transparent;border:0;color:var(--term-fg);font:inherit;padding:4px 0;caret-color:var(--t-prompt)}
+.cmdrow input:focus-visible{outline:none}
+.cmdrow:focus-within{box-shadow:inset 0 2px 0 var(--t-acc)}
+.run{background:var(--t-acc);color:#2A0C00;border:0;border-radius:5px;padding:4px 10px;font:600 12px var(--f-mono)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font:500 12px var(--f-mono)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.hintline{color:var(--muted);font-size:.82rem}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+.mlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.mlist li{display:flex;gap:10px;align-items:flex-start;padding:5px 6px;border-radius:6px;font-size:.9rem}
+.mlist li .dot{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);margin-top:2px;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--accent-ink)}
+.mlist li.done{color:var(--muted)}
+.mlist li.done .dot{background:var(--ok);border-color:var(--ok)}
+.mlist li.now{background:var(--surface2);font-weight:600}
+.mlist li.now .dot{border-color:var(--accent)}
+.state{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0;font-size:.9rem}
+.state dt{color:var(--muted)}.state dd{margin:0;font-family:var(--f-mono);font-size:.85rem;text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font:600 .75rem var(--f-body)}
+.pill.good{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.pill.sudo{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.pill.nosudo{background:var(--surface2);color:var(--muted)}
+.resid{font-size:.82rem;color:var(--muted)}
+
+/* commands tab */
+.sec{display:flex;flex-direction:column;gap:14px}
+.syntax{background:var(--term-bg);color:var(--term-fg);border-radius:10px;padding:16px 18px;font-family:var(--f-mono);overflow-x:auto}
+.syntax .big{font-size:clamp(14px,3.6vw,20px);white-space:nowrap}
+.syntax .big b{font-weight:700}
+.syntax .k1{color:var(--t-acc)}.syntax .k2{color:var(--t-prompt)}.syntax .k3{color:var(--t-path)}.syntax .k4{color:var(--t-warn)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-family:var(--f-body);font-size:.85rem;color:var(--term-dim)}
+.legend b{font-family:var(--f-mono);font-weight:500}
+.flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.flow li{position:relative;display:flex;flex-direction:column;gap:4px;padding-top:34px}
+.flow li::before{content:attr(data-n);position:absolute;top:0;left:0;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 .85rem var(--f-mono);z-index:1}
+.flow li::after{content:"";position:absolute;top:13px;left:30px;right:-14px;height:2px;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 10px)}
+.flow li:last-child::after{display:none}
+.flow strong{font-family:var(--f-mono);font-size:.95rem}
+.flow span{color:var(--muted);font-size:.88rem}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.toolbar input[type=search]{flex:1 1 200px;min-width:0;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 11px;font:inherit}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.f{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.85rem;font-weight:500}
+.f[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.card header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.card header code{font-weight:700;font-size:.95rem;overflow-wrap:anywhere}
+.card p{font-size:.9rem;color:var(--muted)}
+.card .ex{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--term-bg);color:var(--term-fg);border-radius:6px;padding:7px 10px;font-family:var(--f-mono);font-size:.78rem}
+.card .ex span{overflow-x:auto;white-space:nowrap;min-width:0}
+.card .ex span::before{content:"$ ";color:var(--t-prompt)}
+.card .ex button{flex:none;background:var(--t-acc);color:#2A0C00;border:0;border-radius:4px;padding:2px 8px;font:600 .75rem var(--f-body)}
+.vs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.vs article{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.vs .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vs .pair div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.vs .pair div+div{border-left:1px solid var(--line);padding-left:12px}
+.vs code{font-weight:700;color:var(--accent)}
+.vs p{font-size:.88rem;color:var(--muted)}
+.recipe{background:var(--term-bg);color:var(--term-fg);border-radius:10px;padding:16px 18px;font-family:var(--f-mono);font-size:13px;overflow-x:auto;position:relative}
+.recipe div{white-space:pre;line-height:1.8}
+.recipe .c{color:var(--term-dim)}.recipe .p{color:var(--t-prompt)}
+.recipe button{position:absolute;top:10px;right:10px;background:var(--t-acc);color:#2A0C00;border:0;border-radius:5px;padding:3px 10px;font:600 12px var(--f-body)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.opts div{border-top:2px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:2px}
+.opts code{font-weight:700}.opts span{color:var(--muted);font-size:.88rem}
+
+/* quiz */
+.quiz{max-width:720px;display:flex;flex-direction:column;gap:16px}
+.qhead{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:.85rem}
+.q{font-family:var(--f-display);font-size:1.35rem;font-weight:600;line-height:1.3;text-wrap:balance}
+.q code{background:var(--surface2);padding:1px 6px;border-radius:4px}
+.ans{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 14px;width:100%}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt .l{flex:none;font:700 .85rem var(--f-mono);color:var(--muted);margin-top:2px}
+.opt code{background:var(--surface2);padding:1px 5px;border-radius:4px}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--surface))}
+.opt.wrong{border-color:var(--err);background:color-mix(in srgb,var(--err) 12%,var(--surface))}
+.opt:disabled{cursor:default}
+.explain{background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:.92rem}
+.score{font-family:var(--f-display);font-size:3.2rem;font-weight:800;line-height:1}
+.missed{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.missed li{border-top:1px solid var(--line);padding-top:10px;font-size:.92rem}
+.missed code{background:var(--surface2);padding:1px 5px;border-radius:4px}
+footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px}
+
+/* v2: HUD, mapa, dependencias, juegos, logros */
+.hud{display:flex;align-items:center;gap:14px;padding-bottom:12px;flex-wrap:wrap}
+.rank{display:flex;flex-direction:column;line-height:1.2}
+.rank strong{font-family:var(--f-display);font-size:1.05rem}
+.xpbar{display:flex;flex-direction:column;gap:4px;width:170px}
+.tabs{flex:1 1 100%;overflow-x:auto;scrollbar-width:thin}
+.tab{white-space:nowrap}
+select{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font:inherit}
+.ln.acc{color:var(--t-acc)}
+.map{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:26px}
+.node{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:1px;transition:border-color .2s,box-shadow .2s;min-width:0}
+.node svg{width:20px;height:20px;color:var(--accent);margin-bottom:3px}
+.node b{font:700 .85rem var(--f-display)}
+.node small{font:500 .66rem var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.node em{font:600 .74rem var(--f-mono);font-style:normal;margin-top:2px}
+.node:not(:last-child)::after{content:"";position:absolute;top:50%;left:100%;width:26px;height:2px;background:repeating-linear-gradient(90deg,var(--accent) 0 5px,transparent 5px 9px);animation:flow 1s linear infinite;opacity:.6}
+@keyframes flow{to{background-position:9px 0}}
+.node.pulse{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.pkt{position:absolute;left:0;top:0;z-index:5;pointer-events:none;background:var(--accent);color:var(--accent-ink);font:600 11px var(--f-mono);padding:2px 7px;border-radius:4px;white-space:nowrap;transition:transform .75s cubic-bezier(.5,0,.25,1),opacity .75s;will-change:transform}
+.pkt.gone{opacity:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .25s,transform .25s;z-index:30;max-width:calc(100vw - 32px);pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
+.depwrap{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:18px;align-items:start}
+.graph{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px}
+.graph svg{display:block;min-width:700px;width:100%;height:auto}
+.gn{cursor:pointer;transition:opacity .2s}
+.gn rect{fill:var(--surface2);stroke:var(--line);stroke-width:1.5}
+.gn text{fill:var(--fg);font:500 11px var(--f-mono);pointer-events:none}
+.gn.off rect{fill:var(--surface);stroke-dasharray:4 3}
+.gn.dim{opacity:.32}
+.gn.sel rect{fill:var(--fg);stroke:var(--fg)}.gn.sel text{fill:var(--bg)}
+.gn.d rect{stroke:var(--blue);stroke-width:2.5}
+.gn.u rect{stroke:var(--accent);stroke-width:2.5}
+.gn:focus-visible{outline:2px solid var(--accent)}
+.ge{fill:none;stroke:var(--line);stroke-width:1.2;opacity:.55}
+.ge.d{stroke:var(--blue);stroke-width:2.2;opacity:1}
+.ge.u{stroke:var(--accent);stroke-width:2.2;opacity:1}
+.gl{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.sw{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tags code{background:var(--surface2);padding:1px 7px;border-radius:4px;font-size:.78rem}
+.games{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px;align-items:start}
+.gcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.slots,.pool{display:flex;flex-direction:column;gap:6px}
+.slot{display:flex;gap:10px;align-items:center;border:1.5px dashed var(--line);border-radius:6px;padding:8px 10px;min-height:40px;font-family:var(--f-mono);font-size:.8rem;color:var(--muted);overflow-wrap:anywhere}
+.slot b{font:700 .85rem var(--f-mono);width:18px;flex:none}
+.slot.ok{border-style:solid;border-color:var(--ok);color:var(--fg);background:color-mix(in srgb,var(--ok) 10%,var(--surface))}
+.pick{text-align:left;background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:1px}
+.pick code{font-weight:700;overflow-wrap:anywhere}.pick span{font-size:.8rem;color:var(--muted)}
+.pick:disabled{opacity:.3;cursor:default}
+.pick.shake{animation:shake .35s;border-color:var(--err)}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.mem{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mc{aspect-ratio:1/1.05;border-radius:8px;border:1px solid var(--line);background:var(--term-bg);color:var(--t-acc);display:grid;place-items:center;padding:5px;font:700 16px var(--f-mono);text-align:center;overflow-wrap:anywhere}
+.mc:hover{border-color:var(--accent)}
+.mc.open{animation:pop .25s;font-size:11px;line-height:1.25}
+.mc.open.cmd{color:var(--term-fg)}
+.mc.open.desc{background:var(--surface2);color:var(--fg);font-family:var(--f-body);font-weight:600}
+.mc.done{border-color:var(--ok);box-shadow:inset 0 0 0 2px var(--ok)}
+@keyframes pop{from{transform:scale(.88)}to{transform:scale(1)}}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:12px 8px}
+.hex{width:64px;height:72px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 .8rem var(--f-mono)}
+.badge.lock .hex{background:var(--surface2);color:var(--muted)}
+.badge.lock{opacity:.7}
+.badge b{font-size:.9rem}.badge span{font-size:.78rem;color:var(--muted)}
+.diploma{border:2px solid var(--fg);outline:1px solid var(--fg);outline-offset:-9px;border-radius:4px;padding:36px 22px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;background:var(--surface);max-width:720px}
+.diploma h3{font-size:1.8rem;font-weight:800}
+.diploma .names{display:flex;flex-direction:column;gap:2px;font-family:var(--f-display);font-size:1.2rem;font-weight:600}
+.diploma.lock{filter:grayscale(1);opacity:.55}
+@media (max-width:900px){.depwrap{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){
+  .map{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .node::after{display:none!important}
+  .mem{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .xpbar{width:130px}
+}
+
+@media (max-width:900px){
+  .lab{grid-template-columns:minmax(0,1fr)}
+  .flow li::after{display:none}
+}
+@media (max-width:520px){
+  .vs .pair{grid-template-columns:1fr}
+  .vs .pair div+div{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:8px}
+  .tab{padding:10px 10px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true"><rect x="2" y="2" width="34" height="34" rx="8" fill="#2C001E"/><path d="M19 8 29 13.5v11L19 30 9 24.5v-11Z" fill="none" stroke="#FF9A6B" stroke-width="2" stroke-linejoin="round"/><path d="M9 13.5 19 19l10-5.5M19 19v11" fill="none" stroke="#FF9A6B" stroke-width="2" stroke-linejoin="round"/></svg>
+      <div><h1>APT Lab</h1><p>Gestión de paquetes en Linux · el comando APT</p></div>
+    </div>
+    <div class="hud">
+      <div class="rank"><span class="eyebrow">Rango</span><strong id="rname">Novato</strong></div>
+      <div class="xpbar"><div class="bar"><i id="xpbar"></i></div><span class="eyebrow" id="xptxt">0 XP</span></div>
+      <button class="btn" id="theme" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab" role="tab" id="t-terminal" data-tab="terminal" aria-selected="true">Terminal</button>
+      <button class="tab" role="tab" id="t-comandos" data-tab="comandos" aria-selected="false">Comandos</button>
+      <button class="tab" role="tab" id="t-dependencias" data-tab="dependencias" aria-selected="false">Dependencias</button>
+      <button class="tab" role="tab" id="t-juegos" data-tab="juegos" aria-selected="false">Juegos</button>
+      <button class="tab" role="tab" id="t-quiz" data-tab="quiz" aria-selected="false">Quiz</button>
+      <button class="tab" role="tab" id="t-logros" data-tab="logros" aria-selected="false">Logros</button>
+      <button class="tab" role="tab" id="t-ayuda" data-tab="ayuda" aria-selected="false">Ayuda</button>
+    </div>
+  </header>
+
+  <!-- TERMINAL -->
+  <section id="p-terminal" role="tabpanel" aria-labelledby="t-terminal">
+    <div class="lab">
+      <div class="col">
+        <div class="mission" id="mission"></div>
+        <div class="map" id="map" aria-label="Mapa del sistema APT: repositorios, lista local, caché y sistema">
+          <div class="node" id="n-repo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9.6 4.2 4.2 0 0 1 17.5 18Z"/></svg><b>Repositorios</b><small>archive.ubuntu.com</small><em id="c-repo"></em></div>
+          <div class="node" id="n-lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><b>Lista local</b><small>/var/lib/apt/lists</small><em id="c-lista"></em></div>
+          <div class="node" id="n-cache"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg><b>Caché</b><small>/var/cache/apt/archives</small><em id="c-cache"></em></div>
+          <div class="node" id="n-sys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><b>Sistema</b><small>/usr · /etc</small><em id="c-sys"></em></div>
+        </div>
+        <div class="term">
+          <div class="term-bar"><span>lab@ubuntu: ~</span><span>Ubuntu 22.04 · simulación</span></div>
+          <div class="screen" id="screen" role="log" aria-live="polite"></div>
+          <form class="cmdrow" id="form" autocomplete="off">
+            <span class="pr">lab@ubuntu<span style="color:var(--term-fg)">:</span><span class="pa">~</span><span style="color:var(--term-fg)">$</span></span>
+            <input id="cmd" type="text" aria-label="Comando" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="escribe un comando, Tab completa">
+            <button class="run" type="submit">Enter</button>
+          </form>
+        </div>
+        <div class="chips" id="chips" aria-label="Atajos"></div>
+        <p class="hintline">Todo ocurre en una simulación dentro de esta página. No cambia nada de tu computador. Flecha arriba repite comandos, <kbd>Tab</kbd> completa, <kbd>help</kbd> lista lo disponible.</p>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="panel-h"><h3>Misiones</h3><span class="eyebrow" id="mcount">0 / 13</span></div>
+          <div class="bar"><i id="mbar"></i></div>
+          <ol class="mlist" id="mlist"></ol>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>Estado del sistema</h3></div>
+          <dl class="state" id="state"></dl>
+          <p class="resid" id="resid"></p>
+          <button class="btn" id="reset" type="button">Reiniciar laboratorio</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMANDOS -->
+  <section id="p-comandos" role="tabpanel" aria-labelledby="t-comandos" hidden>
+    <div class="wrap">
+      <div class="sec">
+        <h2>Sintaxis general</h2>
+        <div class="syntax">
+          <div class="big"><span class="k1"><b>sudo</b></span> <span class="k2"><b>apt</b></span> <span class="k3"><b>&lt;comando&gt;</b></span> <span class="k4">[opciones]</span> <span>&lt;paquete&gt;</span></div>
+          <div class="legend"><span><b class="k1">sudo</b> da permisos de administrador. Hace falta para instalar o cambiar software.</span><span><b class="k4">[opciones]</b> como <code>-y</code> o <code>--installed</code>.</span></div>
+        </div>
+        <p class="lead">APT (Advanced Package Tool) es el gestor de paquetes de Debian, Ubuntu, Linux Mint y derivadas. Instala, actualiza, busca y elimina programas desde la terminal, resuelve las dependencias solo y descarga desde repositorios oficiales.</p>
+      </div>
+      <div class="sec">
+        <h2>Cómo funciona</h2>
+        <ol class="flow">
+          <li data-n="1"><strong>Repositorios</strong><span>Servidores en internet con los paquetes (.deb).</span></li>
+          <li data-n="2"><strong>apt update</strong><span>Descarga la lista de paquetes y versiones disponibles.</span></li>
+          <li data-n="3"><strong>apt install / upgrade</strong><span>Descarga e instala los paquetes elegidos y sus dependencias.</span></li>
+          <li data-n="4"><strong>Sistema al día</strong><span>El programa queda instalado y listo para usarse.</span></li>
+        </ol>
+      </div>
+      <div class="sec">
+        <h2>Referencia de comandos</h2>
+        <div class="toolbar">
+          <input type="search" id="q" placeholder="Buscar comando o palabra, por ejemplo purge" aria-label="Buscar comando">
+          <div class="filters" id="filters"></div>
+        </div>
+        <div class="cards" id="cards"></div>
+      </div>
+      <div class="sec">
+        <h2>Pares que se confunden</h2>
+        <div class="vs">
+          <article><h3>Actualizar</h3><div class="pair"><div><code>update</code><p>Solo refresca la lista de paquetes. No toca ningún programa.</p></div><div><code>upgrade</code><p>Instala las versiones nuevas. Nunca elimina paquetes.</p></div></div></article>
+          <article><h3>Desinstalar</h3><div class="pair"><div><code>remove</code><p>Quita el programa y conserva su configuración.</p></div><div><code>purge</code><p>Quita el programa y borra también su configuración.</p></div></div></article>
+          <article><h3>Limpiar la caché</h3><div class="pair"><div><code>clean</code><p>Vacía todos los .deb guardados en /var/cache/apt/archives.</p></div><div><code>autoclean</code><p>Borra solo los .deb de versiones viejas que ya no se descargan.</p></div></div></article>
+        </div>
+      </div>
+      <div class="sec">
+        <h2>Flujo recomendado</h2>
+        <div class="recipe" id="recipe">
+          <button type="button" id="copyflow">Copiar</button>
+<div><span class="p">$</span> sudo apt update                <span class="c"># 1. actualizar la lista</span></div>
+<div><span class="p">$</span> sudo apt upgrade               <span class="c"># 2. actualizar programas</span></div>
+<div><span class="p">$</span> sudo apt install &lt;paquete&gt;    <span class="c"># 3. instalar lo que necesites</span></div>
+<div><span class="p">$</span> sudo apt autoremove           <span class="c"># 4. quitar lo que sobra</span></div>
+<div><span class="p">$</span> sudo apt clean                <span class="c"># 5. liberar espacio</span></div>
+        </div>
+        <div class="opts">
+          <div><code>-y</code><span>Responde "sí" a todas las preguntas.</span></div>
+          <div><code>--installed</code><span>Con list: solo lo instalado.</span></div>
+          <div><code>--upgradable</code><span>Con list: solo lo que se puede actualizar.</span></div>
+          <div><code>--purge</code><span>Con autoremove: borra también la configuración.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="p-quiz" role="tabpanel" aria-labelledby="t-quiz" hidden>
+    <div class="quiz" id="quiz"></div>
+  </section>
+
+  <!-- DEPENDENCIAS -->
+  <section id="p-dependencias" role="tabpanel" aria-labelledby="t-dependencias" hidden>
+    <div class="wrap">
+      <div class="sec">
+        <h2>Mapa de dependencias</h2>
+        <p class="lead">Cada línea significa "necesita a". Toca un paquete para ver de qué depende y quién depende de él. Es lo que muestran <code>apt depends</code> y <code>apt rdepends</code>. Los paquetes con relleno están instalados en tu laboratorio: instala algo en la terminal y vuelve a mirar.</p>
+        <div class="toolbar">
+          <label for="dpick" class="eyebrow">Paquete</label><select id="dpick"></select>
+          <div class="gl"><span><i class="sw" style="background:var(--blue)"></i>depende de</span><span><i class="sw" style="background:var(--accent)"></i>lo necesitan</span><span>borde punteado = no instalado</span></div>
+        </div>
+      </div>
+      <div class="depwrap"><div class="graph" id="graph"></div><div class="panel" id="dinfo"></div></div>
+    </div>
+  </section>
+
+  <!-- JUEGOS -->
+  <section id="p-juegos" role="tabpanel" aria-labelledby="t-juegos" hidden>
+    <div class="wrap">
+      <div class="sec"><h2>Juegos</h2><p class="lead">Practica sin escribir comandos. Cada juego que ganas suma 100 XP.</p></div>
+      <div class="games">
+        <div class="gcard">
+          <h3>Ordena el flujo</h3>
+          <p class="hintline">Toca los pasos en el orden recomendado para instalar o actualizar software.</p>
+          <div class="slots" id="og-slots"></div>
+          <div class="pool" id="og-pool"></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="hintline" id="og-msg" role="status"></span><button class="btn" id="og-reset" type="button">Reiniciar</button></div>
+        </div>
+        <div class="gcard">
+          <h3>Memoria de comandos</h3>
+          <p class="hintline">Une cada comando con lo que hace.</p>
+          <div class="mem" id="mem"></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="hintline" id="mem-msg" role="status"></span><button class="btn" id="mem-reset" type="button">Reiniciar</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGROS -->
+  <section id="p-logros" role="tabpanel" aria-labelledby="t-logros" hidden>
+    <div class="wrap">
+      <div class="sec"><h2>Logros</h2><p class="lead" id="ach-xp"></p></div>
+      <div class="badges" id="badges"></div>
+      <div class="sec">
+        <h2>Diploma</h2>
+        <div class="diploma lock" id="diploma">
+          <span class="eyebrow">APT Lab · Gestión de paquetes en Linux</span>
+          <h3>Diploma de práctica</h3>
+          <p>Se otorga a</p>
+          <div class="names"><span>Ana Sofía Hurtado Camayo</span><span>Camila Alejandra Montilla Solarte</span><span>Karen Sofía Espinosa Montenegro</span></div>
+          <p id="dip-sub"></p>
+          <code>sudo apt install conocimiento</code>
+          <span class="eyebrow" id="dip-date"></span>
+        </div>
+      </div>
+      <div><button class="btn" id="wipe" type="button">Borrar progreso guardado</button></div>
+    </div>
+  </section>
+
+  <!-- AYUDA -->
+  <section id="p-ayuda" role="tabpanel" aria-labelledby="t-ayuda" hidden>
+    <div class="wrap">
+      <div class="sec">
+        <h2>Cómo usar APT Lab</h2>
+        <div class="vs">
+          <article><h3>Terminal</h3><p>Escribe comandos apt en la consola simulada y mira el resultado. Cada misión te da un objetivo; si te atascas, "Ver pista" muestra el comando y "Escribirlo" lo pone en la línea de entrada. El panel de estado cambia con cada comando: paquetes instalados, huérfanos, caché y configuración residual.</p></article>
+          <article><h3>Comandos</h3><p>Referencia con todos los comandos de la presentación. Filtra por categoría o busca una palabra. El botón "Probar" lleva el ejemplo a la terminal para ejecutarlo.</p></article>
+          <article><h3>Dependencias</h3><p>Un grafo donde tocas un paquete y ves de qué depende (azul) y quién lo necesita (naranja). También te dice qué pasaría si lo eliminas.</p></article>
+          <article><h3>Juegos y logros</h3><p>Ordena el flujo recomendado y juega a la memoria de comandos. Ganas XP, subes de rango, desbloqueas logros y, al terminar las misiones, un diploma.</p></article>
+          <article><h3>Quiz</h3><p>10 preguntas al azar sobre APT. Al final ves tu puntaje y las respuestas que fallaste. Tu mejor marca queda guardada en este navegador.</p></article>
+        </div>
+        <div class="opts">
+          <div><kbd>Tab</kbd><span>Completa comandos y nombres de paquetes.</span></div>
+          <div><kbd>↑</kbd> <kbd>↓</kbd><span>Recorren los comandos que ya escribiste.</span></div>
+          <div><code>help</code><span>Lista lo que entiende la terminal.</span></div>
+          <div><code>clear</code><span>Limpia la pantalla. Ctrl+L también.</span></div>
+        </div>
+      </div>
+      <div class="sec">
+        <h2>Errores comunes</h2>
+        <div class="cards" id="errs"></div>
+      </div>
+      <div class="sec">
+        <h2>Glosario</h2>
+        <div class="opts" id="gloss"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Gestión de paquetes en Linux · Ana Sofía Hurtado Camayo · Camila Alejandra Montilla Solarte · Karen Sofía Espinosa Montenegro</footer>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+var codeify=function(s){return esc(s).replace(/`([^`]+)`/g,'<code>$1</code>')};
+
+/* ---------- tabs ---------- */
+var TABS=['terminal','comandos','dependencias','juegos','quiz','logros','ayuda'];
+function showTab(name){
+  if(TABS.indexOf(name)<0)name='terminal';
+  TABS.forEach(function(t){
+    $('#p-'+t).hidden=t!==name;
+    $('#t-'+t).setAttribute('aria-selected',String(t===name));
+  });
+  if(name==='terminal')setTimeout(function(){var i=$('#cmd');if(i&&!isTouch)i.focus()},0);
+  if(name==='dependencias')drawDeps();
+  if(name==='logros')drawAch();
+}
+var isTouch=window.matchMedia&&matchMedia('(pointer:coarse)').matches;
+$$('.tab').forEach(function(b){b.addEventListener('click',function(){var n=b.dataset.tab;try{location.hash=n}catch(e){}showTab(n)})});
+window.addEventListener('hashchange',function(){showTab(location.hash.slice(1))});
+
+/* ---------- datos del sistema simulado ---------- */
+var BASE={
+ 'libc6':{v:'2.35-0ubuntu3.1',nv:'2.35-0ubuntu3.4',mb:3.2,d:'GNU C Library: Shared libraries',deps:[],inst:1,auto:0,ess:1},
+ 'libssl3':{v:'3.0.2-0ubuntu1.10',nv:'3.0.2-0ubuntu1.18',mb:1.9,d:'Secure Sockets Layer toolkit - shared libraries',deps:['libc6'],inst:1,auto:1},
+ 'libncursesw6':{v:'6.3-2ubuntu0.1',mb:0.14,d:'shared libraries for terminal handling (wide character support)',deps:['libc6'],inst:1,auto:1},
+ 'perl':{v:'5.34.0-3ubuntu1.3',mb:3.9,d:"Larry Wall's Practical Extraction and Report Language",deps:['libc6'],inst:1,auto:0},
+ 'libcurl4':{v:'7.81.0-1ubuntu1.14',mb:0.29,d:'easy-to-use client-side URL transfer library (OpenSSL flavour)',deps:['libc6','libssl3'],inst:1,auto:1},
+ 'curl':{v:'7.81.0-1ubuntu1.14',nv:'7.81.0-1ubuntu1.18',mb:0.19,d:'command line tool for transferring data with URL syntax',deps:['libcurl4','libc6'],inst:1,auto:0},
+ 'nano':{v:'6.2-1',nv:'6.2-1ubuntu0.1',mb:0.28,d:'small, friendly text editor inspired by Pico',deps:['libc6','libncursesw6'],inst:1,auto:0},
+ 'vim-common':{v:'2:8.2.3995-1ubuntu2.15',mb:0.08,d:'Vi IMproved - Common files',deps:[],inst:1,auto:0},
+ 'vim':{v:'2:8.2.3995-1ubuntu2.15',mb:1.6,d:'Vi IMproved - enhanced vi editor',deps:['vim-common','vim-runtime','libgpm2','libc6'],inst:0,auto:0},
+ 'vim-runtime':{v:'2:8.2.3995-1ubuntu2.15',mb:6.8,d:'Vi IMproved - Runtime files',deps:[],inst:0,auto:0},
+ 'libgpm2':{v:'1.20.7-10build1',mb:0.04,d:'General Purpose Mouse - shared library',deps:['libc6'],inst:0,auto:0},
+ 'htop':{v:'3.0.5-7build2',mb:0.12,d:'interactive processes viewer',deps:['libc6','libncursesw6'],inst:0,auto:0},
+ 'git':{v:'1:2.34.1-1ubuntu1.10',mb:3.2,d:'fast, scalable, distributed revision control system',deps:['git-man','libcurl3-gnutls','liberror-perl','libc6'],inst:0,auto:0},
+ 'git-man':{v:'1:2.34.1-1ubuntu1.10',mb:1.1,d:'fast, scalable, distributed revision control system (manual pages)',deps:[],inst:0,auto:0},
+ 'libcurl3-gnutls':{v:'7.81.0-1ubuntu1.14',mb:0.23,d:'easy-to-use client-side URL transfer library (GnuTLS flavour)',deps:['libc6','libssl3'],inst:0,auto:0},
+ 'liberror-perl':{v:'0.17029-1',mb:0.03,d:'Perl module for error/exception handling in an OO-ish way',deps:['perl'],inst:0,auto:0},
+ 'tree':{v:'2.0.2-1',mb:0.05,d:'displays an indented directory tree, in color',deps:['libc6'],inst:0,auto:0},
+ 'cowsay':{v:'3.03+dfsg2-8',mb:0.02,d:'configurable talking cow',deps:['perl'],inst:0,auto:0},
+ 'nginx':{v:'1.18.0-6ubuntu14.4',mb:0.5,d:'small, powerful, scalable web/proxy server',deps:['nginx-core','nginx-common'],inst:0,auto:0},
+ 'nginx-core':{v:'1.18.0-6ubuntu14.4',mb:0.4,d:'nginx web/proxy server (standard version)',deps:['libc6','libssl3','nginx-common'],inst:0,auto:0},
+ 'nginx-common':{v:'1.18.0-6ubuntu14.4',mb:0.05,d:'small, powerful, scalable web/proxy server - common files',deps:[],inst:0,auto:0},
+ 'neofetch':{v:'7.1.0-3',mb:0.09,d:'Shows Linux System Information with Distribution Logo',deps:['libc6'],inst:0,auto:0}
+};
+var CMDS=['update','upgrade','full-upgrade','dist-upgrade','install','reinstall','remove','purge','autoremove','autoclean','clean','search','show','list','policy','depends','rdepends','download','source','edit-sources','satisfy','moo'];
+var ROOT={update:1,upgrade:1,'full-upgrade':1,'dist-upgrade':1,install:1,reinstall:1,remove:1,purge:1,autoremove:1,clean:1,autoclean:1,'edit-sources':1,satisfy:1};
+var APTONLY=['search','show','list','edit-sources','policy','depends','rdepends'];
+var KNOWN_FLAGS=['-y','--yes','--assume-yes','--installed','--upgradable','--purge'];
+
+var S,PK;
+function fresh(){
+  PK=JSON.parse(JSON.stringify(BASE));
+  Object.keys(PK).forEach(function(n){PK[n].cfg=PK[n].inst?1:0});
+  S={updated:false,debsrc:false,tipYes:false,log:[],done:{},
+     cache:[{n:'curl',v:'7.81.0-1ubuntu1.14',mb:0.19},{n:'nano',v:'6.2-1',mb:0.28}]};
+}
+fresh();
+
+/* ---------- utilidades de estado ---------- */
+function names(){return Object.keys(PK).sort()}
+function cand(p){return S.updated&&p.nv?p.nv:p.v}
+function isUp(p){return !!(p.inst&&p.nv&&S.updated&&p.v!==p.nv)}
+function ups(){return names().filter(function(n){return isUp(PK[n])})}
+function instd(){return names().filter(function(n){return PK[n].inst})}
+function orphans(){
+  return names().filter(function(n){
+    var p=PK[n]; if(!p.inst||!p.auto)return false;
+    return !names().some(function(m){var q=PK[m];return m!==n&&q.inst&&q.deps.indexOf(n)>=0});
+  });
+}
+function rdepsOf(n){return names().filter(function(m){return PK[m].deps.indexOf(n)>=0})}
+function fmt(mb){return mb<1?Math.max(1,Math.round(mb*1000))+' kB':mb.toFixed(1).replace('.',',')+' MB'}
+function deb(n,v){return n+'_'+v.replace(/^\d+:/,'')+'_amd64.deb'}
+function cacheObsolete(){return S.cache.filter(function(e){return e.v!==cand(PK[e.n])})}
+function cacheMb(){return S.cache.reduce(function(a,e){return a+e.mb},0)}
+
+/* ---------- salida de la terminal ---------- */
+var screen=$('#screen'), input=$('#cmd'), busy=false;
+var delay=function(ms){return reduce?Promise.resolve():sleep(ms)};
+function P(text,cls,ms){
+  var d=document.createElement('div'); d.className='ln'+(cls?' '+cls:''); d.textContent=text===''?' ':text;
+  screen.appendChild(d); screen.scrollTop=screen.scrollHeight;
+  return delay(ms==null?14:ms);
+}
+async function PL(lines,cls,ms){for(var i=0;i<lines.length;i++)await P(lines[i],cls,ms)}
+function echo(line){
+  var d=document.createElement('div'); d.className='ln';
+  d.innerHTML='<span class="pr">lab@ubuntu</span>:<span class="pa">~</span>$ ';
+  d.appendChild(document.createTextNode(line)); screen.appendChild(d); screen.scrollTop=screen.scrollHeight;
+}
+function tip(t){return P('# '+t,'tip',10)}
+function hdr(){return PL(['Reading package lists... Done','Building dependency tree... Done','Reading state information... Done'],'',60)}
+
+/* ---------- comandos apt ---------- */
+async function lock(cmd){
+  if(cmd==='update'){
+    await P('Reading package lists... Done');
+    await P('E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)','err');
+    await P('E: Unable to lock directory /var/lib/apt/lists/','err');
+  }else{
+    await P('E: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)','err');
+    await P('E: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?','err');
+  }
+  await tip('Falta sudo. Instalar, actualizar o eliminar software del sistema exige permisos de administrador: sudo apt '+cmd+' ...');
+}
+function confirm(y){
+  var out=[];
+  if(!y){out.push('Do you want to continue? [Y/n] Y')}
+  return out;
+}
+async function askYes(y){
+  if(y)return;
+  await P('Do you want to continue? [Y/n] Y');
+  if(!S.tipYes){S.tipYes=true;await tip('Respondí Y por ti. Con la opción -y esta pregunta se omite.')}
+}
+async function doUpdate(){
+  await PL(['Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease','Get:2 http://archive.ubuntu.com/ubuntu jammy-updates InRelease [119 kB]','Get:3 http://security.ubuntu.com/ubuntu jammy-security InRelease [110 kB]','Fetched 229 kB in 1s (260 kB/s)'],'',90);
+  S.updated=true; S.log.push('update'); fx('Packages.gz','repo','lista');
+  await hdr();
+  var n=ups().length;
+  if(n)await P(n+' package'+(n>1?'s':'')+" can be upgraded. Run 'apt list --upgradable' to see them.",'warn');
+  else await P('All packages are up to date.');
+}
+async function doUpgrade(full){
+  await hdr();
+  await P('Calculating upgrade... Done');
+  var list=ups();
+  if(!list.length){
+    await P('0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.');
+    if(!S.updated)await tip('No hay nada que actualizar porque la lista local está vieja. Ejecuta primero: sudo apt update');
+    return;
+  }
+  var total=list.reduce(function(a,n){return a+PK[n].mb},0);
+  await P('The following packages will be upgraded:'); await P('  '+list.join(' '));
+  await P(list.length+' upgraded, 0 newly installed, 0 to remove and 0 not upgraded.');
+  await P('Need to get '+fmt(total)+' of archives.');
+  await P('After this operation, '+fmt(total*0.4)+' of additional disk space will be used.');
+  await askYes(S.yes);
+  for(var i=0;i<list.length;i++){var p=PK[list[i]];fx(list[i],'repo','cache');await P('Get:'+(i+1)+' http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 '+list[i]+' amd64 '+p.nv+' ['+fmt(p.mb)+']','',50)}
+  await P('Fetched '+fmt(total)+' in 2s ('+Math.round(total*500)+' kB/s)');await bar();
+  for(var j=0;j<list.length;j++){var q=PK[list[j]];fx(list[j],'cache','sys');S.cache.push({n:list[j],v:q.nv,mb:q.mb});q.v=q.nv;await P('Setting up '+list[j]+' ('+q.v+') ...','',40)}
+  S.log.push(full?'full-upgrade':'upgrade');
+}
+async function doInstall(args,reinstall){
+  await hdr();
+  var bad=args.filter(function(n){return !PK[n]});
+  if(bad.length){for(var b=0;b<bad.length;b++)await P('E: Unable to locate package '+bad[b],'err');await tip('Ese paquete no existe en los repositorios. Busca el nombre con: apt search <texto>');return}
+  var direct=[],addl=[],upg=[],same=[],rein=[];
+  args.forEach(function(n){
+    var p=PK[n];
+    if(p.inst){ if(reinstall)rein.push(n); else if(isUp(p))upg.push(n); else same.push(n); }
+    else direct.push(n);
+  });
+  function dfs(n){PK[n].deps.forEach(function(d){if(!PK[d].inst&&addl.indexOf(d)<0&&direct.indexOf(d)<0){addl.push(d);dfs(d)}})}
+  direct.forEach(dfs);
+  var news=addl.concat(direct);
+  for(var s=0;s<same.length;s++)await P(same[s]+' is already the newest version ('+PK[same[s]].v+').');
+  var notUp=ups().filter(function(n){return upg.indexOf(n)<0}).length;
+  if(!news.length&&!upg.length&&!rein.length){
+    await P('0 upgraded, 0 newly installed, 0 to remove and '+notUp+' not upgraded.');
+    return;
+  }
+  if(addl.length){await P('The following additional packages will be installed:');await P('  '+addl.join(' '))}
+  if(news.length){await P('The following NEW packages will be installed:');await P('  '+news.join(' '))}
+  if(upg.length){await P('The following packages will be upgraded:');await P('  '+upg.join(' '))}
+  if(rein.length){await P('The following packages will be REINSTALLED:');await P('  '+rein.join(' '))}
+  await P(upg.length+' upgraded, '+news.length+' newly installed, '+(rein.length?rein.length+' reinstalled, ':'')+'0 to remove and '+notUp+' not upgraded.');
+  var all=news.concat(upg,rein), total=all.reduce(function(a,n){return a+PK[n].mb},0);
+  await P('Need to get '+fmt(total)+' of archives.');
+  if(news.length)await P('After this operation, '+fmt(news.reduce(function(a,n){return a+PK[n].mb},0)*2.6)+' of additional disk space will be used.');
+  await askYes(S.yes);
+  for(var i=0;i<all.length;i++){var p=PK[all[i]];fx(all[i],'repo','cache');await P('Get:'+(i+1)+' http://archive.ubuntu.com/ubuntu jammy/main amd64 '+all[i]+' amd64 '+cand(p)+' ['+fmt(p.mb)+']','',50)}
+  await P('Fetched '+fmt(total)+' in 1s ('+Math.round(total*800)+' kB/s)');await bar();
+  all.forEach(function(n){var p=PK[n];var v=cand(p);if(!S.cache.some(function(e){return e.n===n&&e.v===v}))S.cache.push({n:n,v:v,mb:p.mb})});
+  for(var k=0;k<all.length;k++){
+    var n=all[k],q=PK[n];fx(n,'cache','sys');
+    if(upg.indexOf(n)>=0)q.v=q.nv;
+    if(!q.inst){q.inst=1;q.cfg=1;q.auto=addl.indexOf(n)>=0?1:0}
+    await P('Setting up '+n+' ('+q.v+') ...','',40);
+  }
+  args.forEach(function(n){S.log.push('install:'+n)});
+}
+async function doRemove(args,purge){
+  var verb=purge?'purge':'remove';
+  await hdr();
+  var bad=args.filter(function(n){return !PK[n]});
+  if(bad.length){for(var b=0;b<bad.length;b++)await P('E: Unable to locate package '+bad[b],'err');return}
+  var targets=[],residual=[];
+  for(var i=0;i<args.length;i++){
+    var p=PK[args[i]];
+    if(p.inst)targets.push(args[i]);
+    else if(purge&&p.cfg)residual.push(args[i]);
+    else await P("Package '"+args[i]+"' is not installed, so not removed");
+  }
+  if(!targets.length&&!residual.length){
+    await P('0 upgraded, 0 newly installed, 0 to remove and '+ups().length+' not upgraded.');return;
+  }
+  var closure=targets.slice();
+  for(var c=0;c<closure.length;c++){rdepsOf(closure[c]).forEach(function(m){if(PK[m].inst&&closure.indexOf(m)<0)closure.push(m)})}
+  var ess=closure.filter(function(n){return PK[n].ess});
+  if(ess.length){
+    await P('E: Removing essential system-critical packages is not permitted. This might break the system.','err');
+    await tip(ess.join(', ')+' es esencial y otros programas dependen de él. Con apt rdepends '+ess[0]+' ves quién lo necesita.');
+    return;
+  }
+  closure.forEach(function(n){PK[n].inst=0});
+  var orph=orphans();
+  if(orph.length&&!purge||orph.length&&purge){
+    await P('The following packages were automatically installed and are no longer required:');
+    await P('  '+orph.join(' '));
+    await P("Use 'sudo apt autoremove' to remove them.");
+  }
+  if(closure.length){
+    await P('The following packages will be REMOVED:');await P('  '+closure.join(' '));
+    await P('0 upgraded, 0 newly installed, '+closure.length+' to remove and '+ups().length+' not upgraded.');
+    var mb=closure.reduce(function(a,n){return a+PK[n].mb},0)*2.6;
+    await P('After this operation, '+fmt(mb)+' disk space will be freed.');
+    await askYes(S.yes);
+    await P('(Reading database ... 52311 files and directories currently installed.)');
+  }else{
+    await P('The following packages will be REMOVED:');await P('  '+residual.join(' '));
+  }
+  for(var r=0;r<closure.length;r++){
+    var n=closure[r];
+    fx(n,'sys','trash');await P('Removing '+n+' ('+PK[n].v+') ...','',40);
+    if(purge){PK[n].cfg=0;await P('Purging configuration files for '+n+' ('+PK[n].v+') ...','',30)}
+  }
+  for(var z=0;z<residual.length;z++){PK[residual[z]].cfg=0;await P('Purging configuration files for '+residual[z]+' ('+PK[residual[z]].v+') ...','',40)}
+  closure.concat(residual).forEach(function(n){S.log.push(verb+':'+n)});
+  if(!purge&&closure.length)await tip('remove conservó la configuración de '+closure.join(', ')+'. Mira "Configuración residual" en el panel. Para borrarla usa purge.');
+}
+async function doAutoremove(purge){
+  await hdr();
+  var all=[],list;
+  while((list=orphans()).length){list.forEach(function(n){PK[n].inst=0;all.push(n)})}
+  if(!all.length){await P('0 upgraded, 0 newly installed, 0 to remove and '+ups().length+' not upgraded.');S.log.push('autoremove');return}
+  await P('The following packages will be REMOVED:');await P('  '+all.join(' '));
+  await P('0 upgraded, 0 newly installed, '+all.length+' to remove and '+ups().length+' not upgraded.');
+  await P('After this operation, '+fmt(all.reduce(function(a,n){return a+PK[n].mb},0)*2.6)+' disk space will be freed.');
+  await askYes(S.yes);
+  for(var i=0;i<all.length;i++){
+    fx(all[i],'sys','trash');await P('Removing '+all[i]+' ('+PK[all[i]].v+') ...','',40);
+    if(purge){PK[all[i]].cfg=0;await P('Purging configuration files for '+all[i]+' ('+PK[all[i]].v+') ...','',30)}
+  }
+  S.log.push('autoremove');if(purge)S.log.push('autoremove-purge');
+}
+function listLine(n){
+  var p=PK[n],tag=[];
+  if(p.inst)tag.push('installed'); if(p.inst&&p.auto)tag.push('automatic');
+  var s=n+'/jammy-updates '+cand(p)+' amd64';
+  if(isUp(p))return s+' [upgradable from: '+p.v+']';
+  return s+(tag.length?' ['+tag.join(',')+']':'');
+}
+async function aptMain(tool,args,sudo){
+  var flags=args.filter(function(a){return a.charAt(0)==='-'}), rest=args.filter(function(a){return a.charAt(0)!=='-'});
+  var cmd=rest.shift();
+  S.yes=flags.some(function(f){return f==='-y'||f==='--yes'||f==='--assume-yes'});
+  var has=function(f){return flags.indexOf(f)>=0};
+  if(!cmd||has('--help')||has('-h')){
+    await PL(['apt 2.4.12 (amd64)','Usage: '+tool+' [options] command','','Most used commands:','  list - list packages based on package names','  search - search in package descriptions','  show - show package details','  install - install packages','  reinstall - reinstall packages','  remove - remove packages','  autoremove - Remove automatically all unused packages','  update - update list of available packages','  upgrade - upgrade the system by installing/upgrading packages','  full-upgrade - upgrade the system by removing/installing/upgrading packages','  edit-sources - edit the source information file','  satisfy - satisfy dependency strings'],'',8);
+    return;
+  }
+  if(CMDS.indexOf(cmd)<0||(tool==='apt-get'&&APTONLY.indexOf(cmd)>=0)){
+    await P('E: Invalid operation '+cmd,'err');
+    if(tool==='apt-get'&&CMDS.indexOf(cmd)>=0)await tip('apt-get no tiene "'+cmd+'". Usa apt.');
+    else await tip('No existe ese subcomando. Mira la lista con: apt --help');
+    return;
+  }
+  if(ROOT[cmd]&&!sudo){await lock(cmd);S.log.push('nosudo');return}
+  switch(cmd){
+    case 'update':return doUpdate();
+    case 'upgrade':return doUpgrade(false);
+    case 'full-upgrade':case 'dist-upgrade':return doUpgrade(true);
+    case 'install':
+      if(!rest.length){await P('E: No packages specified','err');return}
+      return doInstall(rest,false);
+    case 'reinstall':
+      if(!rest.length){await P('E: No packages specified','err');return}
+      return doInstall(rest,true);
+    case 'remove':case 'purge':
+      if(!rest.length){await P('E: No packages specified','err');return}
+      return doRemove(rest,cmd==='purge');
+    case 'autoremove':return doAutoremove(has('--purge'));
+    case 'clean':{
+      S.cache.slice(0,5).forEach(function(e){fx(e.n,'cache','trash')});S.cache=[];S.log.push('clean');
+      await P('(sin salida: la caché de /var/cache/apt/archives quedó vacía)','dim');return}
+    case 'autoclean':{
+      var old=cacheObsolete();
+      S.cache=S.cache.filter(function(e){return old.indexOf(e)<0});S.log.push('autoclean');
+      await P('Reading package lists... Done');await P('Building dependency tree... Done');
+      if(!old.length){await tip('No había .deb obsoletos. autoclean solo borra versiones viejas. Si acabas de actualizar la lista, ejecuta update y upgrade primero.');return}
+      for(var i=0;i<old.length;i++)await P('Del '+old[i].n+' '+old[i].v+' [' +fmt(old[i].mb)+']','',40);
+      return}
+    case 'search':{
+      if(!rest.length){await P('E: You must give at least one search pattern','err');return}
+      var term=rest.join(' ').toLowerCase();
+      S.log.push('search');
+      await P('Sorting... Done','',40);await P('Full Text Search... Done','',40);
+      var hit=names().filter(function(n){return n.indexOf(term)>=0||PK[n].d.toLowerCase().indexOf(term)>=0});
+      for(var h=0;h<hit.length;h++){await P(listLine(hit[h]),'',20);await P('  '+PK[hit[h]].d,'dim',20);await P('')}
+      return}
+    case 'show':{
+      if(!rest.length){await P('E: No packages specified','err');return}
+      for(var k=0;k<rest.length;k++){
+        var p=PK[rest[k]];
+        if(!p){await P('N: Unable to locate package '+rest[k],'warn');await P('E: No packages found','err');continue}
+        S.log.push('show:'+rest[k]);
+        await PL(['Package: '+rest[k],'Version: '+cand(p),'Priority: optional','Installed-Size: '+fmt(p.mb*2.6),'Depends: '+(p.deps.length?p.deps.join(', '):'(ninguna)'),'Download-Size: '+fmt(p.mb),'APT-Sources: http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages','Description: '+p.d,''],'',16);
+      }
+      return}
+    case 'list':{
+      S.log.push('list');
+      await P('Listing... Done','',40);
+      var pool=names();
+      if(has('--installed')){pool=pool.filter(function(n){return PK[n].inst});S.log.push('list-installed')}
+      if(has('--upgradable')){pool=pool.filter(function(n){return isUp(PK[n])});S.log.push('list-upgradable')}
+      for(var l=0;l<pool.length;l++)await P(listLine(pool[l]),'',8);
+      if(has('--upgradable')&&!pool.length)await tip(S.updated?'No hay nada por actualizar.':'La lista sale vacía porque aún no hiciste update: APT no sabe qué versiones nuevas existen.');
+      return}
+    case 'policy':{
+      if(!rest.length){await P('Package files:','',8);await P(' 500 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages');return}
+      for(var m=0;m<rest.length;m++){
+        var q=PK[rest[m]];
+        if(!q){await P('N: Unable to locate package '+rest[m],'warn');continue}
+        S.log.push('policy:'+rest[m]);
+        await PL([rest[m]+':','  Installed: '+(q.inst?q.v:'(none)'),'  Candidate: '+cand(q),'  Version table:',(q.inst&&q.v===cand(q)?' *** ':'     ')+cand(q)+' 500','        500 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages'].concat(q.inst&&q.v!==cand(q)?[' *** '+q.v+' 100','        100 /var/lib/dpkg/status']:[]),'',16);
+      }
+      return}
+    case 'depends':{
+      if(!rest.length){await P('E: No packages specified','err');return}
+      for(var d=0;d<rest.length;d++){
+        var r=PK[rest[d]];
+        if(!r){await P('E: No packages found','err');continue}
+        S.log.push('depends:'+rest[d]);
+        await P(rest[d],'',16);
+        if(!r.deps.length)await P('  (sin dependencias)','dim');
+        for(var e=0;e<r.deps.length;e++)await P('  Depends: '+r.deps[e],'',16);
+      }
+      return}
+    case 'rdepends':{
+      if(!rest.length){await P('E: No packages specified','err');return}
+      for(var g=0;g<rest.length;g++){
+        var t=PK[rest[g]];
+        if(!t){await P('E: No packages found','err');continue}
+        S.log.push('rdepends:'+rest[g]);
+        await P(rest[g]);await P('Reverse Depends:');
+        var rd=rdepsOf(rest[g]);
+        if(!rd.length)await P('  (nadie depende de este paquete)','dim');
+        for(var f=0;f<rd.length;f++)await P('  '+rd[f],'',12);
+        if(rest[g]==='libc6')await tip('Muchos paquetes dependen de libc6. Por eso apt se niega a eliminarlo: rdepends avisa qué se rompería.');
+      }
+      return}
+    case 'download':{
+      if(!rest.length){await P('E: No packages specified','err');return}
+      var w=PK[rest[0]];
+      if(!w){await P('E: Unable to locate package '+rest[0],'err');return}
+      S.log.push('download:'+rest[0]);
+      await P('Get:1 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 '+rest[0]+' amd64 '+cand(w)+' ['+fmt(w.mb)+']','',80);
+      await P('Fetched '+fmt(w.mb)+' in 0s (4.800 kB/s)');
+      await tip('Quedó '+deb(rest[0],cand(w))+' en la carpeta actual. No se instaló nada y el sistema no cambió.');
+      return}
+    case 'source':{
+      if(!rest.length){await P('E: Must specify at least one package to fetch source for','err');return}
+      await P('Reading package lists... Done');
+      if(!S.debsrc){
+        await P("E: You must put some 'deb-src' URIs in your sources.list",'err');
+        await tip('Para bajar código fuente hay que activar las líneas deb-src. Prueba: sudo apt edit-sources');return}
+      var sp=PK[rest[0]];
+      if(!sp){await P('E: Unable to find a source package for '+rest[0],'err');return}
+      S.log.push('source');
+      await P('Need to get 15,3 MB of source archives.');
+      await P('Get:1 http://archive.ubuntu.com/ubuntu jammy-updates/main '+rest[0]+' '+cand(sp)+' (tar) [14,9 MB]','',80);
+      await P('dpkg-source: info: extracting '+rest[0]+' in '+rest[0]+'-'+cand(sp).replace(/^\d+:/,'').split('-')[0]);
+      return}
+    case 'edit-sources':{
+      S.debsrc=true;S.log.push('edit-sources');
+      await PL(["Select an editor.  To change later, run 'select-editor'.",'  1. /bin/nano        <---- easiest','  2. /usr/bin/vim.basic','Choose 1-2 [1]: 1'],'',40);
+      await tip('Simulación: se abrió /etc/apt/sources.list y activaste las líneas deb-src.');
+      return}
+    case 'satisfy':{
+      var dep=rest.join(' ').replace(/["']/g,'').trim();
+      if(!dep){await P('E: Need at least one dependency string','err');return}
+      var nm=dep.split(/[\s(]/)[0];
+      await P("Note, satisfying dependency '"+dep+"' with package '"+nm+"'",'dim');
+      return doInstall([nm],false)}
+    case 'moo':
+      S.log.push('moo');
+      await PL(['                 (__) ','                 (oo) ','           /------\\/ ','          / |    ||   ','         *  /\\---/\\ ','            ~~   ~~   ','..."Have you mooed today?"...'],'',60);
+      return;
+  }
+}
+
+/* ---------- ejecución ---------- */
+var history=[],hpos=0;
+function setBusy(b){busy=b;input.readOnly=b}
+async function run(raw){
+  var line=raw.trim(); if(!line||busy)return;
+  history.push(line);hpos=history.length;
+  setBusy(true);fxq=0;echo(line);input.value='';
+  try{
+    var t=line.split(/\s+/),sudo=false;
+    if(t[0]==='sudo'){sudo=true;t.shift()}
+    var tool=t.shift();
+    if(!tool){await P('usage: sudo [-h] command','err')}
+    else if(tool==='clear'){screen.innerHTML=''}
+    else if(tool==='help'){
+      await PL(['Comandos de este laboratorio:','  apt <comando> [opciones] [paquete]','  apt-get <comando> ...   (versión clásica de apt)','  sudo <comando>          (permisos de administrador)','  clear                   (limpia la pantalla)','','Prueba: sudo apt update, apt search editor, sudo apt install vim, apt list --upgradable, apt moo'],'dim',10);
+    }
+    else if(tool==='apt'||tool==='apt-get'){await aptMain(tool,t,sudo)}
+    else if(PROGS[tool]){await runProg(tool,t)}
+    else{await P('bash: '+tool+': command not found','err');await tip('Este laboratorio solo conoce apt, apt-get, sudo, clear y help.')}
+  }catch(e){await P('Error interno en la simulación: '+e.message,'err')}
+  await checkMissions();
+  render();
+  setBusy(false);
+  if(!isTouch)input.focus();
+}
+
+/* ---------- misiones ---------- */
+var MISSIONS=[
+ {t:'Actualiza la lista de paquetes',why:'Antes de instalar o actualizar, APT necesita saber qué hay disponible en los repositorios.',cmd:'sudo apt update',test:function(){return S.log.indexOf('update')>=0}},
+ {t:'Mira qué programas tienen actualización',why:'Consulta los paquetes instalados que tienen una versión más nueva.',cmd:'apt list --upgradable',test:function(){return S.log.indexOf('list-upgradable')>=0}},
+ {t:'Actualiza los programas instalados',why:'upgrade instala las versiones nuevas y nunca elimina paquetes.',cmd:'sudo apt upgrade -y',test:function(){return S.log.indexOf('upgrade')>=0&&S.updated&&!ups().length}},
+ {t:'Busca un editor de texto',why:'No recuerdas el nombre exacto del programa: busca por su descripción.',cmd:'apt search editor',test:function(){return S.log.indexOf('search')>=0}},
+ {t:'Lee la información de vim',why:'show muestra versión, tamaño, dependencias y origen. No necesita sudo.',cmd:'apt show vim',test:function(){return S.log.indexOf('show:vim')>=0}},
+ {t:'Instala vim',why:'APT descarga vim y las dependencias que le faltan.',cmd:'sudo apt install vim',test:function(){return !!PK.vim.inst}},
+ {t:'Descubre qué depende de libc6',why:'Las dependencias inversas avisan qué se rompería si quitas un paquete.',cmd:'apt rdepends libc6',test:function(){return S.log.indexOf('rdepends:libc6')>=0}},
+ {t:'Desinstala vim y conserva su configuración',why:'remove quita el programa pero deja sus archivos de configuración.',cmd:'sudo apt remove vim',test:function(){return S.log.indexOf('remove:vim')>=0&&!PK.vim.inst}},
+ {t:'Borra también la configuración de vim',why:'purge elimina lo que remove dejó atrás.',cmd:'sudo apt purge vim',test:function(){return S.log.indexOf('purge:vim')>=0&&!PK.vim.cfg}},
+ {t:'Elimina las dependencias que sobraron',why:'vim-runtime y libgpm2 solo estaban por vim. autoremove las limpia.',cmd:'sudo apt autoremove',test:function(){return S.log.indexOf('autoremove')>=0&&!orphans().length}},
+ {t:'Libera el espacio de la caché',why:'clean borra todos los .deb descargados.',cmd:'sudo apt clean',test:function(){return S.log.indexOf('clean')>=0&&!S.cache.length}},
+ {t:'Instala cowsay y haz que hable',why:'Instálalo con APT y luego ejecútalo: cowsay hola. Así compruebas que el paquete quedó instalado.',cmd:'sudo apt install cowsay',test:function(){return S.log.indexOf('run:cowsay')>=0}},
+ {t:'Encuentra el huevo de Pascua',why:'Un comando sin utilidad que forma parte de APT.',cmd:'apt moo',test:function(){return S.log.indexOf('moo')>=0}}
+];
+async function checkMissions(){
+  for(var i=0;i<MISSIONS.length;i++){
+    if(!S.done[i]&&MISSIONS[i].test()){S.done[i]=1;A.m[i]=1;saveA();await P('✔ Misión completada: '+MISSIONS[i].t,'ok',30)}
+  }
+  if(MISSIONS.every(function(m,i){return S.done[i]})&&!S.finished){S.finished=1;await P('★ Completaste las '+MISSIONS.length+' misiones. Mira tu diploma en Logros y pasa al Quiz.','ok');confetti()}
+  checkBadges();
+}
+var hintOpen=false;
+function render(){
+  var total=MISSIONS.length,n=MISSIONS.filter(function(m,i){return S.done[i]}).length;
+  var cur=-1;for(var i=0;i<total;i++){if(!S.done[i]){cur=i;break}}
+  var box=$('#mission');
+  if(cur<0){
+    box.innerHTML='<div class="m-body"><div class="eyebrow">Laboratorio completo</div><h3>Terminaste las '+total+' misiones</h3><p class="why">Sigue probando comandos libremente o pasa al Quiz.</p></div><button class="btn primary" type="button" id="goquiz">Ir al Quiz</button>';
+    $('#goquiz').onclick=function(){location.hash='quiz';showTab('quiz')};
+  }else{
+    var m=MISSIONS[cur];
+    box.innerHTML='<div class="m-body"><div class="eyebrow">Misión '+(cur+1)+' de '+total+'</div><h3>'+esc(m.t)+'</h3><p class="why">'+esc(m.why)+'</p>'+(hintOpen?'<p class="hint" style="margin-top:8px"><code>'+esc(m.cmd)+'</code></p>':'')+'</div><button class="btn'+(hintOpen?' primary':'')+'" type="button" id="hint">'+(hintOpen?'Escribirlo':'Ver pista')+'</button>';
+    $('#hint').onclick=function(){
+      if(!hintOpen){hintOpen=true;render()}
+      else{input.value=m.cmd;hintOpen=false;render();input.focus()}
+    };
+  }
+  $('#mcount').textContent=n+' / '+total;
+  $('#mbar').style.width=(n/total*100)+'%';
+  $('#mlist').innerHTML=MISSIONS.map(function(m,i){
+    return '<li class="'+(S.done[i]?'done':i===cur?'now':'')+'"><span class="dot">'+(S.done[i]?'✓':'')+'</span><span>'+esc(m.t)+'</span></li>';
+  }).join('');
+  var up=ups().length,orph=orphans().length,old=cacheObsolete().length;
+  $('#state').innerHTML=
+    '<dt>Lista de paquetes</dt><dd><span class="pill '+(S.updated?'good':'warn')+'">'+(S.updated?'al día':'sin actualizar')+'</span></dd>'+
+    '<dt>Paquetes instalados</dt><dd>'+instd().length+'</dd>'+
+    '<dt>Con actualización</dt><dd>'+(S.updated?up:'?')+'</dd>'+
+    '<dt>Huérfanos (autoremove)</dt><dd>'+orph+'</dd>'+
+    '<dt>Caché de .deb</dt><dd>'+S.cache.length+' · '+fmt(cacheMb())+(old?' · '+old+' viejo'+(old>1?'s':''):'')+'</dd>';
+  var res=names().filter(function(n){return !PK[n].inst&&PK[n].cfg});
+  $('#resid').textContent=res.length?'Configuración residual: '+res.join(', ')+' (remove la dejó; purge la borra).':'Sin configuración residual.';
+  renderHud();renderMap();
+  if(!$('#p-dependencias').hidden)drawDeps();
+  if(!$('#p-logros').hidden)drawAch();
+}
+
+/* ---------- entrada: historial y Tab ---------- */
+input.addEventListener('keydown',function(e){
+  if(e.key==='ArrowUp'){e.preventDefault();if(hpos>0){hpos--;input.value=history[hpos]}}
+  else if(e.key==='ArrowDown'){e.preventDefault();if(hpos<history.length-1){hpos++;input.value=history[hpos]}else{hpos=history.length;input.value=''}}
+  else if(e.key==='Tab'){e.preventDefault();complete()}
+  else if(e.key==='l'&&e.ctrlKey){e.preventDefault();screen.innerHTML=''}
+});
+function complete(){
+  var v=input.value,parts=v.split(/\s+/),last=parts[parts.length-1],pool;
+  var ia=-1;parts.forEach(function(x,i){if(ia<0&&(x==='apt'||x==='apt-get'))ia=i});
+  if(parts.length===1)pool=['sudo','apt','apt-get','clear','help'];
+  else if(ia<0)pool=['apt','apt-get'];
+  else if(parts.length-1===ia+1)pool=CMDS;
+  else pool=names().concat(KNOWN_FLAGS);
+  var m=pool.filter(function(x){return x.indexOf(last)===0});
+  if(!m.length)return;
+  var pre=parts.slice(0,-1).join(' ');pre=pre?pre+' ':'';
+  if(m.length===1){input.value=pre+m[0]+' ';return}
+  var cp=m[0];m.forEach(function(x){while(x.indexOf(cp)!==0)cp=cp.slice(0,-1)});
+  input.value=pre+cp;
+  var d=document.createElement('div');d.className='ln dim';d.textContent=m.join('  ');screen.appendChild(d);screen.scrollTop=screen.scrollHeight;
+}
+$('#form').addEventListener('submit',function(e){e.preventDefault();run(input.value)});
+screen.addEventListener('click',function(){if(!window.getSelection().toString()&&!isTouch)input.focus()});
+$('#chips').innerHTML=['sudo apt update','apt list --upgradable','sudo apt upgrade -y','apt search editor','apt show vim','sudo apt install vim','apt depends vim','sudo apt remove vim','sudo apt autoremove','sudo apt clean'].map(function(c){return '<button class="chip" type="button">'+esc(c)+'</button>'}).join('');
+$$('#chips .chip').forEach(function(b){b.addEventListener('click',function(){input.value=b.textContent;input.focus()})});
+$('#reset').addEventListener('click',async function(){
+  if(busy)return;
+  fresh();hintOpen=false;screen.innerHTML='';render();await intro();
+});
+async function intro(){
+  await P('Laboratorio APT · Ubuntu 22.04 (simulado)','dim',0);
+  await P('Escribe un comando o sigue la misión de arriba. Prueba empezando por: sudo apt update','dim',0);
+}
+
+/* ---------- referencia ---------- */
+var REF=[
+ {g:'Actualizar',c:'apt update',s:1,w:'Actualiza la lista de paquetes disponibles consultando los repositorios. No instala ni cambia ningún programa.',ex:'sudo apt update'},
+ {g:'Actualizar',c:'apt upgrade',s:1,w:'Instala las versiones nuevas de los paquetes que ya tienes. Nunca elimina paquetes: es la opción más segura.',ex:'sudo apt upgrade'},
+ {g:'Actualizar',c:'apt full-upgrade',s:1,w:'Como upgrade, pero si es necesario instala o elimina paquetes para resolver cambios de dependencias.',ex:'sudo apt full-upgrade'},
+ {g:'Actualizar',c:'apt dist-upgrade',s:1,w:'Nombre antiguo de full-upgrade (de apt-get). Se usa para saltos de versión del sistema.',ex:'sudo apt-get dist-upgrade'},
+ {g:'Instalar',c:'apt install <paquete>',s:1,w:'Descarga e instala un programa con todas sus dependencias automáticamente.',ex:'sudo apt install vim'},
+ {g:'Instalar',c:'apt reinstall <paquete>',s:1,w:'Vuelve a instalar un paquete ya instalado. Útil si un programa quedó dañado o le faltan archivos.',ex:'sudo apt reinstall nano'},
+ {g:'Desinstalar',c:'apt remove <paquete>',s:1,w:'Desinstala el programa pero conserva sus archivos de configuración, por si lo instalas de nuevo.',ex:'sudo apt remove vim'},
+ {g:'Desinstalar',c:'apt purge <paquete>',s:1,w:'Desinstala el programa y borra también su configuración. Deja todo limpio.',ex:'sudo apt purge vim'},
+ {g:'Desinstalar',c:'apt autoremove',s:1,w:'Elimina dependencias que se instalaron solo para otros programas y que ya nadie usa. Libera espacio.',ex:'sudo apt autoremove'},
+ {g:'Desinstalar',c:'apt autoremove --purge',s:1,w:'Hace autoremove y además borra la configuración de lo que elimina.',ex:'sudo apt autoremove --purge'},
+ {g:'Consultar',c:'apt search <texto>',s:0,w:'Busca paquetes por nombre o descripción, cuando no sabes cómo se llama exactamente el programa.',ex:'apt search editor'},
+ {g:'Consultar',c:'apt show <paquete>',s:0,w:'Muestra la información de un paquete: versión, tamaño, descripción, dependencias y origen.',ex:'apt show vim'},
+ {g:'Consultar',c:'apt list',s:0,w:'Lista los paquetes. Con --installed muestra los instalados y con --upgradable los que tienen actualización.',ex:'apt list --installed'},
+ {g:'Dependencias',c:'apt policy <paquete>',s:0,w:'Muestra qué versión está instalada, cuál es la candidata y de qué repositorio viene.',ex:'apt policy vim'},
+ {g:'Dependencias',c:'apt depends <paquete>',s:0,w:'Muestra de qué otros paquetes depende el programa para funcionar.',ex:'apt depends vim'},
+ {g:'Dependencias',c:'apt rdepends <paquete>',s:0,w:'Dependencias inversas: qué paquetes necesitan al paquete indicado. Sirve antes de eliminarlo.',ex:'apt rdepends libc6'},
+ {g:'Mantenimiento',c:'apt clean',s:1,w:'Borra todos los archivos .deb descargados que quedan guardados en la caché. Libera espacio.',ex:'sudo apt clean'},
+ {g:'Mantenimiento',c:'apt autoclean',s:1,w:'Borra de la caché solo los .deb de versiones viejas que ya no se pueden descargar.',ex:'sudo apt autoclean'},
+ {g:'Mantenimiento',c:'apt download <paquete>',s:0,w:'Descarga el archivo .deb a la carpeta actual sin instalarlo.',ex:'apt download vim'},
+ {g:'Avanzados',c:'apt source <paquete>',s:0,w:'Descarga el código fuente de un paquete, para estudiarlo o compilarlo.',ex:'apt source vim'},
+ {g:'Avanzados',c:'apt edit-sources',s:1,w:'Abre el archivo de repositorios (sources.list) para agregar o quitar fuentes de software.',ex:'sudo apt edit-sources'},
+ {g:'Avanzados',c:'apt satisfy "<dep>"',s:1,w:'Instala los paquetes necesarios para cumplir una dependencia, por ejemplo una versión mínima.',ex:'sudo apt satisfy "vim (>= 8)"'},
+ {g:'Avanzados',c:'apt moo',s:0,w:'Huevo de Pascua: muestra una vaca. No hace nada útil, pero es parte de APT.',ex:'apt moo'}
+];
+var GROUPS=['Todos'].concat(REF.map(function(r){return r.g}).filter(function(g,i,a){return a.indexOf(g)===i}));
+var grp='Todos';
+$('#filters').innerHTML=GROUPS.map(function(g){return '<button class="f" type="button" aria-pressed="'+(g===grp)+'" data-g="'+g+'">'+g+'</button>'}).join('');
+$$('.f').forEach(function(b){b.addEventListener('click',function(){grp=b.dataset.g;$$('.f').forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});drawCards()})});
+$('#q').addEventListener('input',drawCards);
+function drawCards(){
+  var q=$('#q').value.trim().toLowerCase();
+  var list=REF.filter(function(r){return (grp==='Todos'||r.g===grp)&&(!q||(r.c+' '+r.w+' '+r.g).toLowerCase().indexOf(q)>=0)});
+  $('#cards').innerHTML=list.length?list.map(function(r,i){
+    return '<article class="card"><header><code>'+esc(r.c)+'</code><span class="pill '+(r.s?'sudo':'nosudo')+'">'+(r.s?'sudo':'sin sudo')+'</span></header><p>'+esc(r.w)+'</p><div class="ex"><span>'+esc(r.ex)+'</span><button type="button" data-ex="'+esc(r.ex)+'">Probar</button></div></article>';
+  }).join(''):'<p class="lead">Ningún comando coincide con tu búsqueda.</p>';
+  $$('.card .ex button').forEach(function(b){b.addEventListener('click',function(){
+    location.hash='terminal';showTab('terminal');input.value=b.dataset.ex;input.focus();
+  })});
+}
+drawCards();
+$('#copyflow').addEventListener('click',function(){
+  var b=this,txt='sudo apt update\nsudo apt upgrade\nsudo apt install <paquete>\nsudo apt autoremove\nsudo apt clean';
+  var ok=function(){b.textContent='Copiado';setTimeout(function(){b.textContent='Copiar'},1500)};
+  try{navigator.clipboard.writeText(txt).then(ok,function(){b.textContent='Selecciona y copia'})}catch(e){b.textContent='Selecciona y copia'}
+});
+
+/* ---------- quiz ---------- */
+var QS=[
+ {q:'¿Qué hace `apt update`?',a:['Actualiza la lista de paquetes disponibles; no instala nada','Instala las versiones nuevas de todos los programas','Elimina los paquetes que ya nadie usa','Borra los .deb guardados en la caché'],e:'update solo consulta los repositorios y refresca la lista local. Quien instala las versiones nuevas es upgrade.'},
+ {q:'¿Por qué se ejecuta `apt update` antes de instalar o actualizar?',a:['Para que APT conozca los paquetes y versiones que hay en los repositorios','Para dar permisos de administrador','Para borrar la caché','Para reiniciar el sistema'],e:'APT trabaja con una lista local. Si está vieja, no sabe que existen versiones nuevas.'},
+ {q:'¿Cuál es la diferencia entre `upgrade` y `full-upgrade`?',a:['full-upgrade también puede instalar o eliminar paquetes para resolver dependencias; upgrade nunca elimina','upgrade actualiza el sistema operativo y full-upgrade solo los programas','No hay diferencia, son sinónimos','upgrade necesita sudo y full-upgrade no'],e:'upgrade es la opción más segura porque nunca elimina paquetes. full-upgrade es más completo.'},
+ {q:'Quieres desinstalar vim y borrar también su configuración. ¿Qué usas?',a:['`sudo apt purge vim`','`sudo apt remove vim`','`sudo apt autoremove`','`sudo apt clean`'],e:'remove conserva la configuración y purge la borra.'},
+ {q:'¿Cuál de estos comandos NO necesita sudo?',a:['`apt search editor`','`apt install vim`','`apt update`','`apt autoremove`'],e:'Los comandos de consulta (search, show, list, policy, depends, rdepends) solo leen información.'},
+ {q:'Antes de eliminar un paquete quieres saber qué otros paquetes lo necesitan. ¿Qué usas?',a:['`apt rdepends <paquete>`','`apt depends <paquete>`','`apt policy <paquete>`','`apt show <paquete>`'],e:'rdepends muestra las dependencias inversas. depends muestra lo contrario: de qué depende el paquete.'},
+ {q:'¿Qué diferencia hay entre `clean` y `autoclean`?',a:['clean vacía toda la caché de .deb; autoclean solo borra los de versiones viejas que ya no se descargan','clean borra programas y autoclean borra configuraciones','clean necesita sudo y autoclean no','autoclean borra más cosas que clean'],e:'Ambos limpian la caché. clean la vacía completa y autoclean solo lo obsoleto.'},
+ {q:'¿En qué carpeta guarda APT los .deb descargados?',a:['/var/cache/apt/archives','/etc/apt/sources.list','/usr/bin','/home/usuario/Descargas'],e:'Esa es la caché que limpian clean y autoclean.'},
+ {q:'¿Qué hace `apt download vim`?',a:['Descarga el .deb a la carpeta actual sin instalarlo','Instala vim','Descarga el código fuente de vim','Reinstala vim'],e:'El código fuente se baja con apt source. download solo trae el archivo .deb.'},
+ {q:'¿Para qué sirve `apt edit-sources`?',a:['Abre sources.list para agregar o quitar repositorios','Edita la configuración de un programa instalado','Descarga el código fuente de un paquete','Actualiza la lista de paquetes'],e:'sources.list define de qué repositorios descarga software APT.'},
+ {q:'¿Qué hace la opción `-y`?',a:['Responde "sí" a todas las preguntas','Muestra solo los paquetes instalados','Borra también la configuración','Ejecuta el comando sin permisos'],e:'Sirve para que apt no pregunte [Y/n] antes de continuar.'},
+ {q:'¿Cuál es el flujo recomendado para instalar o actualizar?',a:['update, upgrade, install, autoremove, clean','install, update, clean, upgrade, autoremove','clean, install, upgrade, update, autoremove','upgrade, update, autoremove, install, clean'],e:'Primero se actualiza la lista, luego los programas, se instala lo necesario y al final se limpia.'},
+ {q:'¿Qué muestra `apt policy vim`?',a:['La versión instalada, la candidata y el repositorio de origen','De qué paquetes depende vim','Qué paquetes dependen de vim','Los archivos de configuración de vim'],e:'Es útil para saber si hay una versión más nueva disponible.'},
+ {q:'¿Qué elimina `apt autoremove`?',a:['Dependencias instaladas solo para otros programas que ya nadie usa','Todos los programas que no abriste este mes','La configuración de los programas','Los .deb de la caché'],e:'Conviene correrlo después de desinstalar programas.'}
+];
+var QN=10,qz={};
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function best(){return A.q|0}
+function saveBest(n){if(n>A.q){A.q=n;saveA()}}
+function quizStart(){qz={order:shuffle(QS).slice(0,QN),i:0,score:0,missed:[],ans:false};quizDraw()}
+function quizDraw(){
+  var box=$('#quiz');
+  if(qz.i>=QN){
+    var prev=best();saveBest(qz.score);if(qz.score>=9)confetti();renderHud();checkBadges();
+    var msg=qz.score>=9?'Dominas APT.':qz.score>=7?'Muy bien. Repasa lo que fallaste.':qz.score>=5?'Vas bien. Practica en la terminal y repasa los pares que se confunden.':'Vuelve a la terminal y a la referencia, y prueba de nuevo.';
+    box.innerHTML='<div class="eyebrow">Resultado</div><div class="score">'+qz.score+' / '+QN+'</div><p class="lead">'+msg+(prev?' Tu mejor marca: '+Math.max(prev,qz.score)+' / '+QN+'.':'')+'</p>'+
+      (qz.missed.length?'<h3>Para repasar</h3><ul class="missed">'+qz.missed.map(function(m){return '<li><strong>'+codeify(m.q)+'</strong><br>Respuesta: '+codeify(m.a[0])+'<br><span style="color:var(--muted)">'+codeify(m.e)+'</span></li>'}).join('')+'</ul>':'')+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" type="button" id="again">Intentar de nuevo</button><button class="btn" type="button" id="toref">Ver comandos</button></div>';
+    $('#again').onclick=quizStart;
+    $('#toref').onclick=function(){location.hash='comandos';showTab('comandos')};
+    return;
+  }
+  var q=qz.order[qz.i];qz.cur=q;qz.opts=shuffle(q.a.map(function(t,k){return {t:t,ok:k===0}}));qz.ans=false;
+  var b=best();
+  box.innerHTML='<div class="qhead"><span>Pregunta '+(qz.i+1)+' de '+QN+'</span><span>Aciertos: '+qz.score+(b?' · Mejor marca: '+b:'')+'</span></div><div class="bar"><i style="width:'+(qz.i/QN*100)+'%"></i></div>'+
+    '<h2 class="q" id="qtext">'+codeify(q.q)+'</h2><div class="ans" role="group" aria-labelledby="qtext">'+
+    qz.opts.map(function(o,k){return '<button class="opt" type="button" data-k="'+k+'"><span class="l">'+'ABCD'.charAt(k)+'</span><span>'+codeify(o.t)+'</span></button>'}).join('')+
+    '</div><div id="fb"></div>';
+  $$('#quiz .opt').forEach(function(btn){btn.addEventListener('click',function(){pick(parseInt(btn.dataset.k,10))})});
+}
+function pick(k){
+  if(qz.ans)return;qz.ans=true;
+  var ok=qz.opts[k].ok;if(ok)qz.score++;else qz.missed.push(qz.cur);
+  $$('#quiz .opt').forEach(function(btn,i){
+    btn.disabled=true;
+    if(qz.opts[i].ok)btn.classList.add('right');else if(i===k)btn.classList.add('wrong');
+  });
+  var last=qz.i===QN-1;
+  $('#fb').innerHTML='<div class="explain"><strong>'+(ok?'Correcto. ':'No es esa. ')+'</strong>'+codeify(qz.cur.e)+'</div><div style="margin-top:12px"><button class="btn primary" type="button" id="next">'+(last?'Ver resultado':'Siguiente')+'</button></div>';
+  $('#next').onclick=function(){qz.i++;quizDraw()};
+  $('#next').focus();
+}
+
+/* ---------- ayuda ---------- */
+var ERRS=[
+ ['E: Could not open lock file ... Permission denied','Falta sudo. Los comandos que cambian el sistema necesitan permisos de administrador.','sudo apt update'],
+ ['E: Unable to locate package xyz','El nombre no existe en los repositorios, o escribiste mal. Busca por descripción.','apt search editor'],
+ ['0 upgraded ... cuando esperabas actualizaciones','La lista local está vieja. Ejecuta update antes de upgrade.','sudo apt update'],
+ ['E: Removing essential system-critical packages is not permitted','Otros programas dependen de ese paquete. Revisa quién lo necesita antes de quitarlo.','apt rdepends libc6'],
+ ["E: You must put some 'deb-src' URIs in your sources.list",'Para bajar código fuente hay que activar las líneas deb-src en los repositorios.','sudo apt edit-sources'],
+ ['E: Invalid operation search (con apt-get)','apt-get no trae search ni show. Esos subcomandos son de apt.','apt search editor']
+];
+$('#errs').innerHTML=ERRS.map(function(e){return '<article class="card"><header><code>'+esc(e[0])+'</code></header><p>'+esc(e[1])+'</p><div class="ex"><span>'+esc(e[2])+'</span><button type="button" data-ex="'+esc(e[2])+'">Probar</button></div></article>'}).join('');
+$$('#errs .ex button').forEach(function(b){b.addEventListener('click',function(){location.hash='terminal';showTab('terminal');input.value=b.dataset.ex;input.focus()})});
+var GL=[['Paquete','Programa empaquetado en un archivo .deb que APT instala.'],['Repositorio','Servidor en internet con paquetes oficiales.'],['Dependencia','Paquete que otro necesita para funcionar.'],['Dependencia inversa','Paquete que necesita al que consultas. Lo muestra rdepends.'],['Caché','Carpeta /var/cache/apt/archives con los .deb descargados.'],['Huérfano','Dependencia instalada automáticamente que ya nadie usa. autoremove la elimina.'],['Configuración residual','Archivos de configuración que remove deja y purge borra.'],['sudo','Ejecuta el comando con permisos de administrador.']];
+$('#gloss').innerHTML=GL.map(function(g){return '<div><code>'+esc(g[0])+'</code><span>'+esc(g[1])+'</span></div>'}).join('');
+
+
+/* ---------- v2: progreso, mapa, programas, dependencias, juegos, logros ---------- */
+var A={m:{},f:{},q:0,go:0,gm:0,mv:0};
+try{var _r=JSON.parse(localStorage.getItem('aptlab-a')||'null');if(_r)A=Object.assign(A,_r)}catch(e){}
+function saveA(){try{localStorage.setItem('aptlab-a',JSON.stringify(A))}catch(e){}}
+var RANKS=[[0,'Novato'],[300,'Aprendiz'],[600,'Técnico'],[1000,'Administrador'],[1500,'Sysadmin']];
+function xp(){return Object.keys(A.m).length*100+(A.q|0)*30+(A.go?100:0)+(A.gm?100:0)}
+function rankIdx(x){var r=0;RANKS.forEach(function(k,i){if(x>=k[0])r=i});return r}
+var lastRank=rankIdx(xp());
+var toastT;
+function toast(t){var e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(function(){e.classList.remove('on')},3200)}
+function renderHud(){
+  var x=xp(),r=rankIdx(x),nx=RANKS[r+1];
+  $('#rname').textContent=RANKS[r][1];
+  $('#xpbar').style.width=(nx?(x-RANKS[r][0])/(nx[0]-RANKS[r][0])*100:100)+'%';
+  $('#xptxt').textContent=nx?x+' / '+nx[0]+' XP':x+' XP · máximo';
+  if(r>lastRank){lastRank=r;toast('Subiste de rango: '+RANKS[r][1]);confetti()}
+}
+function confetti(){
+  if(reduce)return;
+  var c=$('#confetti'),x=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;
+  var cols=['#E95420','#FF9A6B','#8AE234','#FCE94F','#8CB4E8','#C7A0D6'],ps=[];
+  for(var i=0;i<140;i++)ps.push({x:innerWidth/2+(Math.random()-.5)*220,y:innerHeight*.62,vx:(Math.random()-.5)*15,vy:-Math.random()*16-4,w:6+Math.random()*6,h:4+Math.random()*5,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[i%cols.length]});
+  var t0=performance.now();
+  (function f(t){
+    x.clearRect(0,0,c.width,c.height);
+    ps.forEach(function(p){p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.vx*=.99;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;x.fillRect(-p.w/2,-p.h/2,p.w,p.h);x.restore()});
+    if(t-t0<2400)requestAnimationFrame(f);else x.clearRect(0,0,c.width,c.height);
+  })(t0);
+}
+$('#theme').addEventListener('click',function(){
+  var cur=document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  document.documentElement.setAttribute('data-theme',cur==='dark'?'light':'dark');
+});
+
+/* mapa animado */
+var fxq=0;
+function pulse(id){var n=$('#n-'+id);if(!n)return;n.classList.add('pulse');setTimeout(function(){n.classList.remove('pulse')},500)}
+function fx(label,from,to){
+  var map=$('#map'),a=$('#n-'+from);
+  if(reduce||!map||!a||$('#p-terminal').hidden)return;
+  var d=(fxq++%6)*130;
+  setTimeout(function(){
+    var m=map.getBoundingClientRect(),ra=a.getBoundingClientRect();
+    var x0=ra.left-m.left+ra.width/2,y0=ra.top-m.top+ra.height/2;
+    var chip=document.createElement('span');chip.className='pkt';chip.textContent=label;
+    chip.style.transform='translate('+x0+'px,'+y0+'px) translate(-50%,-50%)';map.appendChild(chip);
+    if(to==='trash'){
+      requestAnimationFrame(function(){requestAnimationFrame(function(){chip.classList.add('gone');chip.style.transform='translate('+x0+'px,'+(y0-40)+'px) translate(-50%,-50%) scale(.6)'})});
+      setTimeout(function(){chip.remove()},850);return;
+    }
+    var rb=$('#n-'+to).getBoundingClientRect(),x1=rb.left-m.left+rb.width/2,y1=rb.top-m.top+rb.height/2;
+    requestAnimationFrame(function(){requestAnimationFrame(function(){chip.style.transform='translate('+x1+'px,'+y1+'px) translate(-50%,-50%)'})});
+    setTimeout(function(){chip.remove();pulse(to)},800);
+  },d);
+}
+function renderMap(){
+  var set=function(id,t){var e=$('#c-'+id);if(e)e.textContent=t};
+  set('repo',names().length+' paquetes');
+  set('lista',S.updated?'al día':'vieja, falta update');
+  set('cache',S.cache.length+' .deb · '+fmt(cacheMb()));
+  set('sys',instd().length+' instalados');
+}
+async function bar(){
+  var d=document.createElement('div');d.className='ln dim';screen.appendChild(d);
+  var steps=reduce?1:8;
+  for(var i=1;i<=steps;i++){
+    var pct=Math.round(i/steps*100),fl=Math.round(pct/100*24);
+    d.textContent='Progress: ['+(pct<100?' ':'')+(pct<10?' ':'')+pct+'%] ['+new Array(fl+1).join('#')+new Array(25-fl).join('.')+']';
+    screen.scrollTop=screen.scrollHeight;await delay(45);
+  }
+}
+
+/* programas instalados que se pueden ejecutar */
+var PROGS={cowsay:'cowsay',neofetch:'neofetch',tree:'tree',htop:'htop',git:'git',curl:'curl',vim:'vim',nano:'nano',nginx:'nginx'};
+async function runProg(tool,args){
+  var p=PK[PROGS[tool]];
+  if(!p.inst){
+    await P("Command '"+tool+"' not found, but can be installed with:");
+    await P('sudo apt install '+PROGS[tool],'warn');
+    await tip('Ubuntu te sugiere el comando de instalación. Todavía no tienes ese programa: instálalo con APT y vuelve a intentarlo.');
+    return;
+  }
+  S.log.push('run:'+tool);
+  if(args.indexOf('--version')>=0||args.indexOf('-v')>=0){await P(tool+' '+p.v.replace(/^\d+:/,'').split('-')[0]);return}
+  if(tool==='cowsay'){
+    var txt=args.join(' ')||'Moo',lines=[' '+new Array(txt.length+3).join('_'),'< '+txt+' >',' '+new Array(txt.length+3).join('-'),
+      '   \\   (__) ','    \\  (oo) ','     /------\\/ ','    / |    ||   ','   *  /\\---/\\ ','      ~~   ~~   '];
+    await PL(lines,'acc',40);return;
+  }
+  if(tool==='neofetch'){
+    var art=['      .-------.   ','     /       /|   ','    /  .deb /  |  ','   +-------+   |  ','   |       |  /   ','   |  APT  | /    ','   +-------+      '];
+    var info=['lab@ubuntu','----------','OS: Ubuntu 22.04 LTS (simulado)','Kernel: 5.15.0-lab','Packages: '+(1612+instd().length)+' (dpkg)','Shell: bash 5.1.16','Uptime: 2 hours, 14 mins'];
+    for(var i=0;i<art.length;i++)await P(art[i]+'  '+info[i],i<2?'acc':'',50);
+    await tip('Packages cambia cuando instalas o eliminas: cuenta los paquetes que tiene instalados dpkg.');return;
+  }
+  if(tool==='tree'){
+    await PL(['/etc/apt','├── apt.conf.d','├── sources.list','├── sources.list.d','└── trusted.gpg.d','','4 directories, 1 file'],'',30);
+    await tip('sources.list es el archivo que abre apt edit-sources.');return;
+  }
+  if(tool==='htop'){
+    await PL(['  PID USER      PR  NI    VIRT    RES  %CPU %MEM COMMAND','    1 root      20   0  167904  11280   0.0  0.1 systemd','  812 lab       20   0   19324   5120   0.7  0.0 bash',' 1024 root      20   0   75312   9800   0.0  0.1 apt'],'',30);
+    await tip('Simulación: en un sistema real htop abre una vista interactiva y sales con q.');return;
+  }
+  await P('(simulación) '+tool+' está instalado y listo para usarse. Prueba: '+tool+' --version','dim');
+}
+
+/* grafo de dependencias */
+var dsel='vim',LAY=null;
+function depClosure(n,dir){
+  var seen={},q=[n];
+  while(q.length){var x=q.pop();(dir==='d'?PK[x].deps:rdepsOf(x)).forEach(function(y){if(!seen[y]){seen[y]=1;q.push(y)}})}
+  return Object.keys(seen).sort();
+}
+function layout(){
+  var depth={};
+  function dp(n,d){if(depth[n]==null||depth[n]<d){depth[n]=d;PK[n].deps.forEach(function(x){dp(x,d+1)})}}
+  names().filter(function(n){return !rdepsOf(n).length}).forEach(function(n){dp(n,0)});
+  var cols=[],pos={};
+  names().forEach(function(n){(cols[depth[n]]=cols[depth[n]]||[]).push(n)});
+  var max=Math.max.apply(null,cols.map(function(c){return c.length}));
+  cols.forEach(function(c,i){c.forEach(function(n,j){pos[n]={x:16+i*190,y:12+j*38}})});
+  return {pos:pos,w:16+(cols.length-1)*190+128+16,h:24+max*38};
+}
+function drawDeps(){
+  var L=LAY||(LAY=layout());
+  var D=depClosure(dsel,'d'),U=depClosure(dsel,'u'),p=PK[dsel];
+  var sv='<svg viewBox="0 0 '+L.w+' '+L.h+'" role="group" aria-label="Grafo de dependencias entre paquetes">';
+  names().forEach(function(a){PK[a].deps.forEach(function(b){
+    var pa=L.pos[a],pb=L.pos[b],x1=pa.x+128,y1=pa.y+13,x2=pb.x,y2=pb.y+13,cls='ge';
+    if((a===dsel||D.indexOf(a)>=0)&&D.indexOf(b)>=0)cls+=' d';
+    else if((b===dsel||U.indexOf(b)>=0)&&U.indexOf(a)>=0)cls+=' u';
+    sv+='<path class="'+cls+'" d="M'+x1+' '+y1+' C'+(x1+46)+' '+y1+' '+(x2-46)+' '+y2+' '+x2+' '+y2+'"/>';
+  })});
+  names().forEach(function(n){
+    var q=L.pos[n],c='gn'+(PK[n].inst?'':' off');
+    if(n===dsel)c+=' sel';else if(D.indexOf(n)>=0)c+=' d';else if(U.indexOf(n)>=0)c+=' u';else c+=' dim';
+    sv+='<g class="'+c+'" data-n="'+n+'" tabindex="0" role="button" aria-label="'+n+(PK[n].inst?', instalado':', no instalado')+'"><rect x="'+q.x+'" y="'+q.y+'" width="128" height="26" rx="5"/><text x="'+(q.x+8)+'" y="'+(q.y+17)+'">'+esc(n)+'</text></g>';
+  });
+  $('#graph').innerHTML=sv+'</svg>';
+  var sel=$('#dpick');
+  if(!sel.options.length)sel.innerHTML=names().map(function(n){return '<option>'+n+'</option>'}).join('');
+  sel.value=dsel;
+  var closure=[dsel];
+  for(var c2=0;c2<closure.length;c2++)rdepsOf(closure[c2]).forEach(function(m){if(PK[m].inst&&closure.indexOf(m)<0)closure.push(m)});
+  var rm;
+  if(!p.inst)rm='No está instalado, así que remove no tendría nada que quitar.';
+  else if(closure.some(function(n){return PK[n].ess}))rm='APT se niega a eliminarlo: es esencial y otros paquetes lo necesitan.';
+  else if(closure.length>1)rm='Con sudo apt remove '+dsel+', APT también quitaría: '+closure.slice(1).join(', ')+'.';
+  else rm='Solo se quitaría '+dsel+'. Sus dependencias quedarían como huérfanas si nadie más las usa; autoremove las limpia.';
+  var tags=function(a){return a.length?'<div class="tags">'+a.map(function(x){return '<code>'+esc(x)+'</code>'}).join('')+'</div>':'<span class="hintline">Ninguno</span>'};
+  $('#dinfo').innerHTML='<h3>'+esc(dsel)+' <span class="pill '+(p.inst?'good':'nosudo')+'">'+(p.inst?'instalado':'no instalado')+'</span></h3><p class="hintline">'+esc(p.d)+'</p>'+
+    '<div><div class="eyebrow" style="margin-bottom:5px">Depende de ('+D.length+')</div>'+tags(D)+'</div>'+
+    '<div><div class="eyebrow" style="margin-bottom:5px">Lo necesitan ('+U.length+')</div>'+tags(U)+'</div>'+
+    '<p style="font-size:.9rem">'+esc(rm)+'</p>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-t="apt depends '+dsel+'">Probar depends</button><button class="btn" type="button" data-t="apt rdepends '+dsel+'">Probar rdepends</button></div>';
+  $$('#dinfo [data-t]').forEach(function(b){b.addEventListener('click',function(){location.hash='terminal';showTab('terminal');input.value=b.dataset.t;input.focus()})});
+}
+function pickDep(n,focus){dsel=n;drawDeps();if(focus){var g=$('#graph [data-n="'+n+'"]');if(g)g.focus()}}
+$('#graph').addEventListener('click',function(e){var g=e.target.closest('.gn');if(g)pickDep(g.dataset.n,true)});
+$('#graph').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){var g=e.target.closest('.gn');if(g){e.preventDefault();pickDep(g.dataset.n,true)}}});
+$('#dpick').addEventListener('change',function(){pickDep(this.value,false)});
+
+/* juego 1: ordena el flujo */
+var FLOW=[['sudo apt update','Actualizar la lista'],['sudo apt upgrade','Actualizar programas'],['sudo apt install <paquete>','Instalar lo que necesites'],['sudo apt autoremove','Quitar lo que sobra'],['sudo apt clean','Liberar espacio']];
+var og={};
+function ogStart(){
+  og={next:0,err:0};
+  $('#og-slots').innerHTML=FLOW.map(function(f,i){return '<div class="slot" id="sl'+i+'"><b>'+(i+1)+'</b><span>?</span></div>'}).join('');
+  $('#og-pool').innerHTML=shuffle(FLOW.map(function(f,i){return i})).map(function(i){return '<button class="pick" type="button" data-i="'+i+'"><code>'+esc(FLOW[i][0])+'</code><span>'+esc(FLOW[i][1])+'</span></button>'}).join('');
+  $('#og-msg').textContent='Errores: 0';
+  $$('#og-pool .pick').forEach(function(b){b.addEventListener('click',function(){
+    var i=parseInt(b.dataset.i,10);
+    if(i===og.next){
+      var sl=$('#sl'+i);sl.classList.add('ok');sl.lastChild.textContent=FLOW[i][0];b.disabled=true;og.next++;
+      if(og.next===FLOW.length){
+        $('#og-msg').textContent='¡Orden correcto con '+og.err+' error'+(og.err===1?'':'es')+'!';
+        if(!A.go){A.go=1;saveA()}renderHud();confetti();checkBadges();
+      }
+    }else{
+      og.err++;$('#og-msg').textContent='Errores: '+og.err+'. Piensa qué necesita saber APT antes de actuar.';
+      b.classList.add('shake');setTimeout(function(){b.classList.remove('shake')},400);
+    }
+  })});
+}
+$('#og-reset').addEventListener('click',ogStart);
+
+/* juego 2: memoria */
+var PAIRS=[['apt update','Actualiza la lista de paquetes'],['apt upgrade','Instala las versiones nuevas'],['apt purge','Quita el programa y su configuración'],['apt autoremove','Elimina dependencias sin uso'],['apt rdepends','Quién necesita este paquete'],['apt clean','Vacía la caché de .deb']];
+var mm={};
+function memInfo(){$('#mem-msg').textContent='Movimientos: '+mm.moves+' · Parejas: '+mm.found+' / '+PAIRS.length+(A.mv?' · Mejor marca: '+A.mv:'')}
+function memStart(){
+  var cards=[];PAIRS.forEach(function(p,i){cards.push({id:i,t:p[0],k:'cmd'});cards.push({id:i,t:p[1],k:'desc'})});
+  mm={cards:shuffle(cards),open:[],moves:0,found:0,lock:false};
+  $('#mem').innerHTML=mm.cards.map(function(c,i){return '<button class="mc" type="button" data-i="'+i+'" aria-label="Carta '+(i+1)+' boca abajo">$_</button>'}).join('');
+  $$('#mem .mc').forEach(function(b){b.addEventListener('click',function(){memPick(b)})});
+  memInfo();
+}
+function memPick(b){
+  var i=parseInt(b.dataset.i,10),c=mm.cards[i];
+  if(mm.lock||b.classList.contains('open')||b.classList.contains('done'))return;
+  b.className='mc open '+c.k;b.textContent=c.t;b.setAttribute('aria-label',c.t);mm.open.push(i);
+  if(mm.open.length<2)return;
+  mm.moves++;
+  var all=$$('#mem .mc'),a=mm.cards[mm.open[0]],ba=all[mm.open[0]];
+  if(a.id===c.id&&a.k!==c.k){
+    ba.classList.add('done');b.classList.add('done');mm.found++;mm.open=[];memInfo();
+    if(mm.found===PAIRS.length){
+      if(!A.mv||mm.moves<A.mv)A.mv=mm.moves;A.gm=1;saveA();renderHud();confetti();checkBadges();
+      $('#mem-msg').textContent='¡Completado en '+mm.moves+' movimientos!';
+    }
+  }else{
+    mm.lock=true;memInfo();
+    setTimeout(function(){[ba,b].forEach(function(x){x.className='mc';x.textContent='$_';x.setAttribute('aria-label','Carta boca abajo')});mm.open=[];mm.lock=false},850);
+  }
+}
+$('#mem-reset').addEventListener('click',memStart);
+
+/* logros y diploma */
+var has=function(pre){return S.log.some(function(k){return k.indexOf(pre)===0})};
+var BADGES=[
+ {k:'upd',s:'update',n:'Primer update',d:'Actualizaste la lista de paquetes.',t:function(){return has('update')}},
+ {k:'sudo',s:'sudo',n:'Aprendí sudo',d:'Viste el error de permisos al olvidar sudo.',t:function(){return has('nosudo')}},
+ {k:'inst',s:'.deb',n:'Instalador',d:'Instalaste un paquete.',t:function(){return has('install:')}},
+ {k:'dep',s:'dep',n:'Detective',d:'Consultaste dependencias con depends o rdepends.',t:function(){return has('depends:')||has('rdepends:')}},
+ {k:'purge',s:'rm',n:'Limpieza profunda',d:'Usaste purge para borrar configuración.',t:function(){return has('purge:')}},
+ {k:'clean',s:'0 MB',n:'Sistema ligero',d:'Hiciste autoremove y clean.',t:function(){return has('autoremove')&&has('clean')}},
+ {k:'run',s:'run',n:'Programa en marcha',d:'Ejecutaste un programa que instalaste.',t:function(){return has('run:')}},
+ {k:'moo',s:'moo',n:'Huevo de Pascua',d:'Encontraste apt moo.',t:function(){return has('moo')}},
+ {k:'quiz',s:'10/10',n:'Quiz perfecto',d:'Sacaste 10 de 10 en el quiz.',t:function(){return A.q>=10}},
+ {k:'game',s:'GG',n:'Jugador',d:'Ganaste los dos juegos.',t:function(){return !!(A.go&&A.gm)}}
+];
+function checkBadges(){
+  var ch=0;
+  BADGES.forEach(function(b){if(!A.f[b.k]&&b.t()){A.f[b.k]=1;ch=1;toast('Logro desbloqueado: '+b.n)}});
+  if(ch)saveA();
+  if(!$('#p-logros').hidden)drawAch();
+}
+function drawAch(){
+  var x=xp();
+  $('#ach-xp').textContent=x+' XP · rango '+RANKS[rankIdx(x)][1]+' · '+BADGES.filter(function(b){return A.f[b.k]}).length+' de '+BADGES.length+' logros';
+  $('#badges').innerHTML=BADGES.map(function(b){return '<div class="badge'+(A.f[b.k]?'':' lock')+'"><div class="hex">'+esc(b.s)+'</div><b>'+esc(b.n)+'</b><span>'+esc(b.d)+'</span></div>'}).join('');
+  var n=Object.keys(A.m).length,all=n>=MISSIONS.length;
+  $('#diploma').className='diploma'+(all?'':' lock');
+  $('#dip-sub').textContent=all?'Completó las '+MISSIONS.length+' misiones del laboratorio de APT.':'Completa las '+MISSIONS.length+' misiones para desbloquearlo ('+n+' de '+MISSIONS.length+').';
+  $('#dip-date').textContent=all?new Date().toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'}):'';
+}
+var wipeArmed=false;
+$('#wipe').addEventListener('click',function(){
+  var b=this;
+  if(!wipeArmed){wipeArmed=true;b.textContent='¿Seguro? Pulsa otra vez para borrar';setTimeout(function(){wipeArmed=false;b.textContent='Borrar progreso guardado'},3000);return}
+  wipeArmed=false;b.textContent='Borrar progreso guardado';
+  A={m:{},f:{},q:0,go:0,gm:0,mv:0};saveA();lastRank=0;renderHud();drawAch();memInfo();
+});
+
+/* ---------- arranque ---------- */
+render();
+intro();
+quizStart();
+ogStart();memStart();
+showTab(location.hash.slice(1));
+})();
+</script>
+
+</body></html>
